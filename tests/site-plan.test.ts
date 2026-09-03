@@ -96,6 +96,20 @@ describe('selectRepresentativeSiteRoutes', () => {
     expect(plan.excluded.detailLimit).toBe(1)
   })
 
+  it('treats short root-level headline slugs as details outside navigation', () => {
+    const plan = selectRepresentativeSiteRoutes({
+      startUrl: 'https://example.com/',
+      maxDetailPages: 0,
+      links: [
+        { href: '/fed-cuts-interest-rates', context: 'main' },
+        { href: '/brand-marketing', context: 'navigation' },
+      ],
+    })
+
+    expect(plan.routes.map((route) => new URL(route.url).pathname)).toEqual(['/', '/brand-marketing'])
+    expect(plan.excluded.detailLimit).toBe(1)
+  })
+
   it('preserves deep navigation routes as sections', () => {
     const plan = selectRepresentativeSiteRoutes({
       startUrl: 'https://example.com/',

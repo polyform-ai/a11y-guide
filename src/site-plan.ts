@@ -62,7 +62,8 @@ function looksLikeDetail(pathname: string, context: SiteLinkContext): boolean {
   if (DATE_PATH.test(pathname) || context === 'article' || segments.length >= 3) return true
   if (segments.length >= 2 && DETAIL_ROOT.has(segments[0]!.toLowerCase())) return true
   const finalSegment = segments.at(-1) ?? ''
-  return finalSegment.length > 48 || finalSegment.split('-').length >= 5
+  const slugWords = finalSegment.split('-').filter(Boolean).length
+  return finalSegment.length > 48 || slugWords >= (segments.length === 1 ? 3 : 5)
 }
 
 function contextRank(context: SiteLinkContext): number {

@@ -60,6 +60,21 @@ describe('evaluateAgentReadiness', () => {
     expect(new Set(findings.map((item) => item.selector)).size).toBe(2)
     expect(findings.map((item) => document.querySelector(item.selector!)?.textContent)).toEqual(['First', 'Second'])
   })
+
+  it('normalizes a non-unique authored selector during read-only evaluation', () => {
+    document.title = 'Authored controls'
+    document.documentElement.lang = 'en'
+    document.body.innerHTML = '<main><h1>Actions</h1><button class="purchase-button">Buy first</button><button class="purchase-button">Buy second</button></main>'
+    const result = evaluateAgentReadiness({
+      readOnly: true,
+      autoDiscover: false,
+      steps: [{ id: 'purchase', selector: '.purchase-button', title: 'Buy first' }],
+    })
+    const selector = result.manifest.items[0]?.selector
+
+    expect(selector).not.toBe('.purchase-button')
+    expect(document.querySelectorAll(selector!)).toHaveLength(1)
+  })
 })
 
 describe('renderAgentReadyReport', () => {

@@ -42,6 +42,21 @@ describe('discoverGuideSteps', () => {
     expect(actions).toHaveLength(2)
     expect(actions.map((step) => document.querySelector(step.selector)?.textContent)).toEqual(['First action', 'Second action'])
   })
+
+  it('keeps the descendant path when a unique ancestor anchors the selector', () => {
+    document.body.innerHTML = `
+      <main>
+        <div id="toolbar"><span><button>First action</button></span><span><button>Second action</button></span></div>
+        <div id="other"><span><button>Other action</button></span><span><button>Another action</button></span></div>
+      </main>
+    `
+    const actions = discoverGuideSteps(document, { readOnly: true }).filter((step) => step.kind === 'action')
+
+    expect(actions[0]?.selector).toContain('#toolbar >')
+    expect(actions.map((step) => document.querySelector(step.selector)?.textContent)).toEqual([
+      'First action', 'Second action', 'Other action', 'Another action',
+    ])
+  })
 })
 
 describe('createGuide', () => {

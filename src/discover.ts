@@ -53,8 +53,15 @@ export function selectorForElement(element: HTMLElement, root: Document | HTMLEl
     const idSelector = current.id ? `#${cssEscape(current.id)}` : ''
     const guideId = current.dataset.a11yGuideId
     const guideSelector = guideId ? `[data-a11y-guide-id="${cssEscape(guideId)}"]` : ''
-    if (idSelector && isUnique(root, idSelector)) return idSelector
-    if (guideSelector && isUnique(root, guideSelector)) return guideSelector
+    const suffix = parts.length ? ` > ${parts.join(' > ')}` : ''
+    if (idSelector && isUnique(root, idSelector)) {
+      const candidate = `${idSelector}${suffix}`
+      if (isUnique(root, candidate)) return candidate
+    }
+    if (guideSelector && isUnique(root, guideSelector)) {
+      const candidate = `${guideSelector}${suffix}`
+      if (isUnique(root, candidate)) return candidate
+    }
 
     const tag = current.tagName.toLowerCase()
     const siblings = current.parentElement
@@ -180,7 +187,9 @@ export function collectGuideItems(
   autoDiscover = true,
   options: DiscoveryOptions = {},
 ): ResolvedGuideStep[] {
-  const authoredItems = resolveGuideSteps(root, authored)
+  const authoredItems = resolveGuideSteps(root, authored).map((item) => {
+    return options.readOnly ? { ...item, selector: selectorForElement(item.element, root) } : item
+  })
   const authoredElements = new Set(authoredItems.map((item) => item.element))
   const discoveredItems = autoDiscover
     ? resolveGuideSteps(root, discoverGuideSteps(root, options)).filter((item) => !authoredElements.has(item.element))
