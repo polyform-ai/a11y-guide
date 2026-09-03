@@ -1,0 +1,38 @@
+name: Audit finding
+description: Report a semantic, keyboard, guide, manifest, or inspector problem.
+title: "[Audit]: "
+labels: [audit]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include semantic HTML and the smallest setup that shows the problem.
+    validations:
+      required: true
+  - type: dropdown
+    id: method
+    attributes:
+      label: How was it found?
+      options:
+        - Keyboard testing
+        - Screen reader or accessibility tree
+        - Computer-use agent
+        - Guide inspector
+        - Automated audit
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true

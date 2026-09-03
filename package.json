@@ -1,0 +1,62 @@
+{
+  "name": "@polyform/a11y-guide",
+  "version": "0.1.0",
+  "description": "Accessible, author-guided navigation and lightweight DOM auditing for any website.",
+  "author": "Polyform",
+  "homepage": "https://github.com/polyform-ai/a11y-guide#readme",
+  "bugs": {
+    "url": "https://github.com/polyform-ai/a11y-guide/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/polyform-ai/a11y-guide.git"
+  },
+  "keywords": [
+    "accessibility",
+    "a11y",
+    "guided-navigation",
+    "keyboard-navigation",
+    "wcag"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./audit": {
+      "types": "./dist/audit.d.ts",
+      "import": "./dist/audit.js"
+    },
+    "./inspector": {
+      "types": "./dist/inspector.d.ts",
+      "import": "./dist/inspector.js"
+    }
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run test && npm run build && npm pack --dry-run"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.13.2",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

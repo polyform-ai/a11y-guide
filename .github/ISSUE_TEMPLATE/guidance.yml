@@ -1,0 +1,33 @@
+name: Guidance or prompt idea
+description: Propose clearer guidance, a reusable prompt, or a real-world example.
+title: "[Guidance]: "
+labels: [guidance]
+body:
+  - type: textarea
+    id: situation
+    attributes:
+      label: Situation
+      description: What page, workflow, or browser-agent task is difficult today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed guidance or prompt
+      description: Share copy that is specific, truthful, and reusable.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: How did you test this with keyboard users, assistive technology, or computer-use agents?
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: This guidance does not expose secrets or personal data.
+          required: true
+        - label: This guidance does not claim an outcome the interface cannot provide.
+          required: true
