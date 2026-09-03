@@ -41,7 +41,7 @@ This project is maintained by [Polyform](https://github.com/polyform-ai) and rel
 npm install @polyform-ai/a11y-guide
 ```
 
-The scored-report and DevTools release is versioned as `0.2.0`. Expect additive refinements as more human and browser-agent evaluations are contributed.
+The scored-report and DevTools APIs are available from `0.2.1`. Expect additive refinements as more human and browser-agent evaluations are contributed.
 
 ## Quick start
 
