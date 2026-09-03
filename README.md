@@ -364,4 +364,4 @@ npm run example
 2. Add npm trusted publishing and provenance from GitHub Actions.
 3. Test the packed tarball in at least one plain HTML app and one framework app.
 4. Run axe-core plus manual keyboard and screen-reader checks on the demo.
-5. Publish `0.1.0` as a prerelease or `next` tag until the API has been used in more than one production interface.
+5. Publish from a clean commit, verify a fresh registry install, and use the `next` tag for APIs that have not passed a real-site integration yet.
