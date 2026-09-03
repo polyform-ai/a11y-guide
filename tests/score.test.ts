@@ -79,4 +79,18 @@ describe('renderAgentReadyReport', () => {
   it('requires at least one page', () => {
     expect(() => renderAgentReadyReport({ pages: [] })).toThrow('At least one page')
   })
+
+  it('groups repeated findings and includes a copyable remediation prompt', () => {
+    document.title = 'Repeated controls'
+    document.documentElement.lang = 'en'
+    document.body.innerHTML = '<main><h1>Actions</h1><div role="button">First</div><div role="button">Second</div></main>'
+    const page = evaluateAgentReadiness({ readOnly: true })
+    const html = renderAgentReadyReport({ title: 'Repeated controls report', pages: [page] })
+
+    expect(html.match(/A custom interactive element is not keyboard focusable/g)).toHaveLength(1)
+    expect(html).toContain('2 occurrences')
+    expect(html).toContain('View 2 affected selectors')
+    expect(html).toContain('Give this remediation prompt to a coding agent')
+    expect(html).toContain('Find and fix shared components or templates first')
+  })
 })

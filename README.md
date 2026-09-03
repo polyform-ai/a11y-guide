@@ -19,7 +19,7 @@ This is a small open-source experiment from Polyform. The goal is to discover, i
 - Publishes a versioned JSON guide manifest that browser agents and test tools can inspect.
 - Includes a development overlay that previews the actions and sections an agent can discover.
 - Scores rendered pages across structure, actions, state, guidance, and consequence safety.
-- Generates a standalone HTML report with an overall score, score by page, evidence, and recommendations.
+- Generates a standalone HTML report with an overall score, score by page, grouped evidence, recommendations, and a copy-ready remediation prompt.
 - Includes a Chromium DevTools extension for inspecting any rendered page.
 - Ships as modern ESM with TypeScript declarations and no runtime dependencies.
 
@@ -223,7 +223,7 @@ const html = renderAgentReadyReport({
 })
 ```
 
-For an integration that already uses `createGuide()`, call `guide.getAgentReadiness()` so the score uses the same root and authored steps. In a browser crawl, collect one evaluation per route and pass all of them to `renderAgentReadyReport()` to get a large overall score plus the score for every page.
+For an integration that already uses `createGuide()`, call `guide.getAgentReadiness()` so the score uses the same root and authored steps. In a browser crawl, collect one evaluation per route and pass all of them to `renderAgentReadyReport()` to get a large overall score plus the score for every page. Repeated identical findings are shown once with an occurrence count and collapsed selectors, and the top of the report includes a copy-ready prompt for a coding agent to fix shared causes across the site.
 
 Use `selectRepresentativeSiteRoutes()` before auditing a large site. It selects a bounded set of same-site section pages from links rendered on the start page, strips query and fragment variants, ignores pagination and utility routes, and caps article-like detail pages separately. It deliberately does not recursively crawl the selected pages, so a publication archive cannot expand into millions of article visits.
 
