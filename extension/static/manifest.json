@@ -1,0 +1,7 @@
+{
+  "manifest_version": 3,
+  "name": "Polyform Agent View",
+  "description": "See and score the structure, actions, state, and guidance exposed to browser agents.",
+  "version": "0.0.0",
+  "devtools_page": "devtools.html"
+}

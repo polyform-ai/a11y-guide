@@ -18,6 +18,9 @@ This is a small open-source experiment from Polyform. The goal is to discover, i
 - Provides a small, dependency-free audit API for high-signal DOM mistakes.
 - Publishes a versioned JSON guide manifest that browser agents and test tools can inspect.
 - Includes a development overlay that previews the actions and sections an agent can discover.
+- Scores rendered pages across structure, actions, state, guidance, and consequence safety.
+- Generates a standalone HTML report with an overall score, score by page, evidence, and recommendations.
+- Includes a Chromium DevTools extension for inspecting any rendered page.
 - Ships as modern ESM with TypeScript declarations and no runtime dependencies.
 
 ## What it deliberately does not do
@@ -38,7 +41,7 @@ This project is maintained by [Polyform](https://github.com/polyform-ai) and rel
 npm install @polyform-ai/a11y-guide
 ```
 
-The initial public API is versioned as `0.1.0`. Expect additive refinements as more human and browser-agent evaluations are contributed.
+The scored-report and DevTools release is versioned as `0.2.0`. Expect additive refinements as more human and browser-agent evaluations are contributed.
 
 ## Quick start
 
@@ -198,7 +201,42 @@ const inspector = showGuideOverlay()
 inspector.destroy()
 ```
 
-This is a development aid, not an exact accessibility-tree viewer and not a substitute for assistive-technology testing. A dedicated browser DevTools extension that combines this overlay, the browser accessibility tree, audit findings, and manifest editing is on the community roadmap.
+This is a development aid, not an exact accessibility-tree viewer and not a substitute for assistive-technology testing.
+
+## Score a page and generate an HTML report
+
+```ts
+import {
+  evaluateAgentReadiness,
+  renderAgentReadyReport,
+} from '@polyform-ai/a11y-guide'
+
+const page = evaluateAgentReadiness()
+console.log(page.score, page.dimensions, page.findings)
+
+const html = renderAgentReadyReport({
+  title: 'Storefront agent readiness',
+  siteUrl: 'https://example.com',
+  pages: [page],
+})
+```
+
+For an integration that already uses `createGuide()`, call `guide.getAgentReadiness()` so the score uses the same root and authored steps. In a browser crawl, collect one evaluation per route and pass all of them to `renderAgentReadyReport()` to get a large overall score plus the score for every page.
+
+The report is an explainable regression signal, not a WCAG score or guarantee that a task will succeed. See the [scoring contract](docs/agent-readiness-report-v1.md) for weights, deductions, and coverage boundaries.
+
+## Use the DevTools extension
+
+The repository includes a first usable Chromium extension:
+
+1. Clone the repository and run `npm install && npm run build:extension`.
+2. Open `chrome://extensions`, enable Developer mode, and choose **Load unpacked**.
+3. Select the generated `extension/dist` directory.
+4. Open DevTools on a page and select **Agent View**.
+
+The panel shows the page score, dimension scores, findings, and likely agent-visible targets. It can inspect a problem element in the Elements panel, toggle an on-page overlay, and download an HTML report. See the [extension guide](extension/README.md).
+
+For host-level discovery, Markdown, bot policy, OAuth, MCP, and API metadata, pair this package with Cloudflare's Agent Readiness scanner. The [ecosystem guide](docs/agent-readiness-ecosystem.md) explains the difference and links to Browser Use, UI-TARS, Agent TARS, browser accessibility tooling, and related conventions.
 
 If the trigger competes with another fixed surface, such as cookie consent or
 chat, move it without reaching into the Shadow DOM:

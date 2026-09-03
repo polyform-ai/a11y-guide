@@ -61,6 +61,8 @@ export interface GuideController {
   destroy(): void
   getItems(): ResolvedGuideStep[]
   getManifest(): GuideManifest
+  /** Score the currently rendered page using the same model as the report API. */
+  getAgentReadiness(): import('./score.js').AgentReadinessEvaluation
   goTo(id: string): boolean
 }
 

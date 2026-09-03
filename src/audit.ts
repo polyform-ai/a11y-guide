@@ -59,6 +59,29 @@ export function auditPage(options: AuditOptions = {}): AuditFinding[] {
     if (!accessibleName(element)) findings.push(finding('accessible-name', 'critical', 'Interactive controls need an accessible name.', element))
   })
 
+  query<HTMLElement>('[aria-controls]').forEach((element) => {
+    const targets = element.getAttribute('aria-controls')?.trim().split(/\s+/).filter(Boolean) ?? []
+    if (targets.some((id) => !documentRoot.getElementById(id))) {
+      findings.push(finding('aria-controls-target', 'serious', 'aria-controls references an element that does not exist.', element))
+    }
+  })
+
+  const actionNames = new Map<string, HTMLElement[]>()
+  query<HTMLElement>('button, a[href], input[type="button"], input[type="submit"], [role="button"], [role="link"]').filter(isVisible).forEach((element) => {
+    const name = normalized(accessibleName(element))
+    if (!name) return
+    const matches = actionNames.get(name) ?? []
+    matches.push(element)
+    actionNames.set(name, matches)
+  })
+  actionNames.forEach((elements, name) => {
+    if (elements.length < 2) return
+    const destinations = new Set(elements.map((element) => element instanceof HTMLAnchorElement ? element.href : element.getAttribute('formaction') ?? 'action'))
+    if (destinations.size > 1) {
+      findings.push(finding('duplicate-action-name', 'moderate', `The action name "${name}" is used for different destinations or effects.`, elements[0]))
+    }
+  })
+
   query<HTMLElement>('input:not([type="hidden"]), select, textarea').filter(isVisible).forEach((element) => {
     if (!accessibleName(element)) findings.push(finding('form-label', 'critical', 'Form controls need an accessible label.', element))
   })

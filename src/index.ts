@@ -1,9 +1,12 @@
 import { collectGuideItems, discoverGuideSteps } from './discover.js'
-import { accessibleName, exposedState, implicitRole, isDisabled, visibleText } from './dom.js'
-import type { GuideController, GuideManifest, GuideOptions, ResolvedGuideStep } from './types.js'
+import type { GuideController, GuideOptions, ResolvedGuideStep } from './types.js'
+import { evaluateAgentReadiness } from './score.js'
+import { buildGuideManifest } from './manifest.js'
 
 export type { GuideActionType, GuideConfirmation, GuideContext, GuideContextValue, GuideController, GuideItemKind, GuideManifest, GuideManifestItem, GuideOptions, GuideStep, ResolvedGuideStep } from './types.js'
 export { auditGuidance, auditPage, type AuditFinding, type AuditImpact, type AuditOptions } from './audit.js'
+export { evaluateAgentReadiness, type AgentReadinessDimension, type AgentReadinessDimensionId, type AgentReadinessEvaluation, type AgentReadinessFinding, type AgentReadinessGrade } from './score.js'
+export { renderAgentReadyReport, type AgentReadyReportOptions } from './report.js'
 export { collectGuideItems, discoverGuideSteps } from './discover.js'
 
 const STYLE = `
@@ -40,29 +43,6 @@ function focusTarget(item: ResolvedGuideStep, shouldScroll: boolean): void {
   if (target.tabIndex < 0) target.setAttribute('tabindex', '-1')
   target.focus({ preventScroll: true })
   if (!hadTabindex) target.addEventListener('blur', () => target.removeAttribute('tabindex'), { once: true })
-}
-
-function manifestFor(doc: Document, items: ResolvedGuideStep[]): GuideManifest {
-  return {
-    schema: 'https://github.com/polyform-ai/a11y-guide/blob/main/docs/manifest-v1.md',
-    version: 1,
-    page: {
-      title: doc.title,
-      language: doc.documentElement.lang || undefined,
-      url: doc.location?.href || undefined,
-    },
-    items: items.map(({ element, ...item }) => ({
-      ...item,
-      element: {
-        tagName: element.tagName.toLowerCase(),
-        role: implicitRole(element),
-        accessibleName: accessibleName(element),
-        visibleText: item.kind === 'action' ? visibleText(element) || undefined : undefined,
-        disabled: isDisabled(element),
-        state: exposedState(element),
-      },
-    })),
-  }
 }
 
 export function createGuide(options: GuideOptions = {}): GuideController {
@@ -186,7 +166,7 @@ export function createGuide(options: GuideOptions = {}): GuideController {
   const refresh = (): void => {
     if (destroyed) return
     items = collectGuideItems(root, options.steps ?? [], options.autoDiscover !== false)
-    manifest.textContent = JSON.stringify(manifestFor(doc, items))
+    manifest.textContent = JSON.stringify(buildGuideManifest(doc, items))
     body.replaceChildren()
     renderGroup('Sections', items.filter((item) => item.kind === 'section'))
     renderGroup('Actions', items.filter((item) => item.kind === 'action'))
@@ -238,7 +218,8 @@ export function createGuide(options: GuideOptions = {}): GuideController {
     refresh,
     goTo,
     getItems: () => [...items],
-    getManifest: () => manifestFor(doc, items),
+    getManifest: () => buildGuideManifest(doc, items),
+    getAgentReadiness: () => evaluateAgentReadiness({ root, steps: options.steps, autoDiscover: options.autoDiscover }),
     destroy: () => {
       destroyed = true
       clearTimeout(refreshTimer)

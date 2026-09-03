@@ -1,6 +1,6 @@
 {
   "name": "@polyform-ai/a11y-guide",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Accessible, author-guided navigation and lightweight DOM auditing for any website.",
   "author": "Polyform",
   "homepage": "https://github.com/polyform-ai/a11y-guide#readme",
@@ -24,6 +24,8 @@
   "files": [
     "dist",
     "docs",
+    "extension/dist",
+    "extension/README.md",
     "examples",
     "scripts",
     "README.md",
@@ -43,10 +45,15 @@
     "./inspector": {
       "types": "./dist/inspector.d.ts",
       "import": "./dist/inspector.js"
+    },
+    "./report": {
+      "types": "./dist/report.d.ts",
+      "import": "./dist/report.js"
     }
   },
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && npm run build:extension",
+    "build:extension": "node scripts/build-extension.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run test && npm run build && npm pack --dry-run",
@@ -56,9 +63,11 @@
     "node": ">=20"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "devDependencies": {
+    "esbuild": "^0.25.10",
     "happy-dom": "^20.13.2",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
