@@ -37,6 +37,16 @@ describe('evaluateAgentReadiness', () => {
     ]))
     expect(result.findings.every((item) => item.dimension && item.recommendation && item.deduction > 0)).toBe(true)
   })
+
+  it('does not add target attributes during a read-only audit', () => {
+    goodPage()
+    const before = document.body.innerHTML
+    const result = evaluateAgentReadiness({ readOnly: true })
+
+    expect(result.score).toBe(100)
+    expect(document.body.innerHTML).toBe(before)
+    expect(result.manifest.items.every((item) => document.querySelector(item.selector))).toBe(true)
+  })
 })
 
 describe('renderAgentReadyReport', () => {

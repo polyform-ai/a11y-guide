@@ -1,0 +1,75 @@
+import { describe, expect, it } from 'vitest'
+import { selectRepresentativeSiteRoutes } from '../src/index.js'
+
+describe('selectRepresentativeSiteRoutes', () => {
+  it('keeps a large publication audit bounded to high-level sections', () => {
+    const articleLinks = Array.from({ length: 500 }, (_, index) => ({
+      href: `/brand-marketing/article-number-${index}-with-a-long-headline`,
+      text: `Article ${index}`,
+      context: 'article' as const,
+    }))
+    const plan = selectRepresentativeSiteRoutes({
+      startUrl: 'https://www.adweek.com/',
+      maxPages: 8,
+      maxDetailPages: 1,
+      links: [
+        { href: '/brand-marketing/', text: 'Brand Marketing', context: 'navigation' },
+        { href: '/media/', text: 'Media', context: 'navigation' },
+        { href: '/commerce/', text: 'Commerce', context: 'navigation' },
+        { href: '/category/technology/', text: 'Technology', context: 'navigation' },
+        { href: '/page/2/', text: 'Next page', context: 'main' },
+        { href: '/search?q=agents', text: 'Search', context: 'main' },
+        { href: 'https://example.com/story', text: 'External story', context: 'article' },
+        ...articleLinks,
+      ],
+    })
+
+    expect(plan.routes).toHaveLength(6)
+    expect(plan.routes.filter((route) => route.kind === 'detail')).toHaveLength(1)
+    expect(plan.routes.slice(0, 5).map((route) => new URL(route.url).pathname)).toEqual([
+      '/', '/brand-marketing', '/media', '/commerce', '/category/technology',
+    ])
+    expect(plan.excluded.detailLimit).toBe(499)
+    expect(plan.excluded.utility).toBe(2)
+    expect(plan.excluded.external).toBe(1)
+  })
+
+  it('normalizes same-site variants, assets, fragments, and duplicate URLs', () => {
+    const plan = selectRepresentativeSiteRoutes({
+      startUrl: 'https://www.flybridge.com/',
+      maxPages: 5,
+      maxDetailPages: 0,
+      links: [
+        { href: 'https://flybridge.com/team?ref=nav#people', text: 'Team', context: 'navigation' },
+        { href: '/team/', text: 'Meet the team', context: 'footer' },
+        { href: '/portfolio#ai', text: 'Portfolio', context: 'navigation' },
+        { href: '/logo.svg', text: 'Logo', context: 'unknown' },
+      ],
+    })
+
+    expect(plan.routes.map((route) => route.url)).toEqual([
+      'https://www.flybridge.com/',
+      'https://www.flybridge.com/team',
+      'https://www.flybridge.com/portfolio',
+    ])
+    expect(plan.excluded.duplicate).toBe(1)
+    expect(plan.excluded.asset).toBe(1)
+  })
+
+  it('keeps explicitly preferred section paths ahead of shallower footer routes', () => {
+    const plan = selectRepresentativeSiteRoutes({
+      startUrl: 'https://www.adweek.com/',
+      maxPages: 4,
+      maxDetailPages: 0,
+      preferredPaths: ['/vertical/agencies/', '/vertical/media/'],
+      links: [
+        { href: '/about/', text: 'About', context: 'navigation' },
+        { href: '/contact/', text: 'Contact', context: 'navigation' },
+      ],
+    })
+
+    expect(plan.routes.map((route) => new URL(route.url).pathname)).toEqual([
+      '/', '/vertical/agencies', '/vertical/media', '/about',
+    ])
+  })
+})

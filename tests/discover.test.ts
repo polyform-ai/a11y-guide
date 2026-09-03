@@ -29,6 +29,19 @@ describe('discoverGuideSteps', () => {
     expect(step?.requirements).toEqual(['Choose an account', 'Confirm access'])
     expect(step?.context).toEqual({ workflowCount: 3, signedIn: true })
   })
+
+  it('can produce resolvable selectors without changing a third-party page', () => {
+    document.body.innerHTML = `
+      <main><h1>Example</h1><div><button id="duplicate">First action</button><button id="duplicate">Second action</button></div></main>
+    `
+    const before = document.body.innerHTML
+    const steps = discoverGuideSteps(document, { readOnly: true })
+    const actions = steps.filter((step) => step.kind === 'action')
+
+    expect(document.body.innerHTML).toBe(before)
+    expect(actions).toHaveLength(2)
+    expect(actions.map((step) => document.querySelector(step.selector)?.textContent)).toEqual(['First action', 'Second action'])
+  })
 })
 
 describe('createGuide', () => {

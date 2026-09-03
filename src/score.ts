@@ -154,7 +154,7 @@ function gradeFor(score: number): AgentReadinessGrade {
 export function evaluateAgentReadiness(options: AuditOptions = {}): AgentReadinessEvaluation {
   const root = options.root ?? document
   const doc = ownerDocument(root)
-  const items = collectGuideItems(root, options.steps ?? [], options.autoDiscover !== false)
+  const items = collectGuideItems(root, options.steps ?? [], options.autoDiscover !== false, { readOnly: options.readOnly })
   const actions = items.filter((item) => item.kind === 'action')
   const findings = [...auditPage(options), ...auditGuidance(options)].map(serializedFinding)
 

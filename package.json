@@ -27,6 +27,7 @@
     "extension/dist",
     "extension/README.md",
     "examples",
+    "prompts",
     "scripts",
     "README.md",
     "LICENSE"

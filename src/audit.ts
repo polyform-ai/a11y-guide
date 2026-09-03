@@ -16,6 +16,8 @@ export interface AuditOptions {
   root?: Document | HTMLElement
   steps?: GuideStep[]
   autoDiscover?: boolean
+  /** Inspect without adding generated target attributes to the host page. */
+  readOnly?: boolean
 }
 
 function selectorFor(element: Element): string {
@@ -129,7 +131,7 @@ function normalized(value: string): string {
 export function auditGuidance(options: AuditOptions = {}): AuditFinding[] {
   const root = options.root ?? document
   const findings: AuditFinding[] = []
-  const items = collectGuideItems(root, options.steps ?? [], options.autoDiscover !== false)
+  const items = collectGuideItems(root, options.steps ?? [], options.autoDiscover !== false, { readOnly: options.readOnly })
 
   items.filter((item) => item.kind === 'action').forEach((item) => {
     const element = item.element

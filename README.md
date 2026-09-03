@@ -35,6 +35,8 @@ Automated checks cannot certify WCAG conformance. Combine them with keyboard, zo
 
 This project is maintained by [Polyform](https://github.com/polyform-ai) and released under the [MIT License](LICENSE). Bug reports and focused contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
+Copy-ready adoption tasks live in [Helpful prompts](prompts/README.md), beginning with the React and React Router prompt used for the Polyform product.
+
 ## Install
 
 ```sh
@@ -222,6 +224,19 @@ const html = renderAgentReadyReport({
 ```
 
 For an integration that already uses `createGuide()`, call `guide.getAgentReadiness()` so the score uses the same root and authored steps. In a browser crawl, collect one evaluation per route and pass all of them to `renderAgentReadyReport()` to get a large overall score plus the score for every page.
+
+Use `selectRepresentativeSiteRoutes()` before auditing a large site. It selects a bounded set of same-site section pages from links rendered on the start page, strips query and fragment variants, ignores pagination and utility routes, and caps article-like detail pages separately. It deliberately does not recursively crawl the selected pages, so a publication archive cannot expand into millions of article visits.
+
+```js
+const plan = selectRepresentativeSiteRoutes({
+  startUrl: 'https://example.com/',
+  links: renderedLinks,
+  maxPages: 10,
+  maxDetailPages: 1,
+})
+```
+
+Pass `{ readOnly: true }` to `evaluateAgentReadiness()` when inspecting a third-party page. This uses resolvable structural selectors without adding generated target attributes to the page.
 
 The report is an explainable regression signal, not a WCAG score or guarantee that a task will succeed. See the [scoring contract](docs/agent-readiness-report-v1.md) for weights, deductions, and coverage boundaries.
 
