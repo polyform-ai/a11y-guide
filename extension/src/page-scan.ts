@@ -6,4 +6,4 @@ declare global {
   }
 }
 
-window.__polyformAgentReadinessScan = evaluateAgentReadiness
+window.__polyformAgentReadinessScan = () => evaluateAgentReadiness({ readOnly: true })

@@ -8,6 +8,8 @@ export { auditGuidance, auditPage, type AuditFinding, type AuditImpact, type Aud
 export { evaluateAgentReadiness, type AgentReadinessDimension, type AgentReadinessDimensionId, type AgentReadinessEvaluation, type AgentReadinessFinding, type AgentReadinessGrade } from './score.js'
 export { renderAgentReadyReport, type AgentReadyReportOptions } from './report.js'
 export { collectGuideItems, discoverGuideSteps } from './discover.js'
+export type { DiscoveryOptions } from './discover.js'
+export { selectRepresentativeSiteRoutes, type RepresentativeSitePlan, type RepresentativeSitePlanOptions, type RepresentativeSiteRoute, type SiteLinkCandidate, type SiteLinkContext } from './site-plan.js'
 
 const STYLE = `
 :host{all:initial;position:fixed;z-index:2147483000;right:var(--a11y-guide-right,1rem);bottom:var(--a11y-guide-bottom,1rem);left:var(--a11y-guide-left,auto);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172019;color-scheme:light}

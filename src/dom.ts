@@ -20,6 +20,10 @@ function subtreeText(element: HTMLElement): string {
   return normalized(Array.from(element.querySelectorAll<HTMLImageElement>('img[alt]')).map((image) => image.alt).join(' '))
 }
 
+function isElement(element: HTMLElement, tagName: string): boolean {
+  return element.tagName.toLowerCase() === tagName
+}
+
 /** A pragmatic accessible-name approximation for discovery and audits. */
 export function accessibleName(element: HTMLElement): string {
   const labelledBy = referencedText(element, 'aria-labelledby')
@@ -27,19 +31,22 @@ export function accessibleName(element: HTMLElement): string {
   const ariaLabel = normalized(element.getAttribute('aria-label'))
   if (ariaLabel) return ariaLabel
 
-  if (element instanceof HTMLInputElement) {
-    const type = element.type.toLowerCase()
-    const label = labelText(element)
+  if (isElement(element, 'input')) {
+    const input = element as HTMLInputElement
+    const type = input.type.toLowerCase()
+    const label = labelText(input)
     if (label) return label
-    if (type === 'image') return normalized(element.alt || element.title)
-    if (['button', 'submit', 'reset'].includes(type)) return normalized(element.value || element.title)
-    return normalized(element.title)
+    if (type === 'image') return normalized(input.alt || input.title)
+    if (['button', 'submit', 'reset'].includes(type)) return normalized(input.value || input.title)
+    return normalized(input.title)
   }
-  if (element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement) {
-    return labelText(element) || normalized(element.title)
+  if (isElement(element, 'select') || isElement(element, 'textarea')) {
+    const control = element as HTMLSelectElement | HTMLTextAreaElement
+    return labelText(control) || normalized(control.title)
   }
-  if (element instanceof HTMLImageElement || element instanceof HTMLAreaElement) {
-    return normalized(element.alt || element.title)
+  if (isElement(element, 'img') || isElement(element, 'area')) {
+    const image = element as HTMLImageElement | HTMLAreaElement
+    return normalized(image.alt || image.title)
   }
 
   if (element.matches('button, a[href], summary, h1, h2, h3, h4, h5, h6, [role="button"], [role="link"], [role="checkbox"], [role="menuitem"], [role="option"], [role="radio"], [role="switch"], [role="tab"]')) {
@@ -53,8 +60,9 @@ export function accessibleDescription(element: HTMLElement): string {
 }
 
 export function visibleText(element: HTMLElement): string {
-  if (element instanceof HTMLInputElement && ['button', 'submit', 'reset'].includes(element.type.toLowerCase())) {
-    return normalized(element.value)
+  if (isElement(element, 'input')) {
+    const input = element as HTMLInputElement
+    if (['button', 'submit', 'reset'].includes(input.type.toLowerCase())) return normalized(input.value)
   }
   // Alternative text can contribute to an accessible name, but it is not a
   // visibly rendered label for label-in-name comparisons.
@@ -106,8 +114,14 @@ export function exposedState(element: HTMLElement): Record<string, string | numb
   })
   const current = element.getAttribute('aria-current')
   if (current) state.current = current === 'true' ? true : current
-  if (element instanceof HTMLInputElement && ['checkbox', 'radio'].includes(element.type)) state.checked = element.checked
-  if (element instanceof HTMLInputElement && ['number', 'range'].includes(element.type)) state.value = element.value
-  if (element instanceof HTMLSelectElement) state.selectedOption = element.selectedOptions[0]?.textContent?.trim() ?? ''
+  if (isElement(element, 'input')) {
+    const input = element as HTMLInputElement
+    if (['checkbox', 'radio'].includes(input.type)) state.checked = input.checked
+    if (['number', 'range'].includes(input.type)) state.value = input.value
+  }
+  if (isElement(element, 'select')) {
+    const select = element as HTMLSelectElement
+    state.selectedOption = select.selectedOptions[0]?.textContent?.trim() ?? ''
+  }
   return Object.keys(state).length ? state : undefined
 }

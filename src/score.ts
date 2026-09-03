@@ -124,12 +124,6 @@ function ownerDocument(root: Document | HTMLElement): Document {
   return doc
 }
 
-function selectorFor(element: HTMLElement): string {
-  if (element.id) return `#${element.id}`
-  const guideId = element.dataset.a11yGuideId
-  return guideId ? `[data-a11y-guide-id="${guideId}"]` : element.tagName.toLowerCase()
-}
-
 function serializedFinding(item: AuditFinding): AgentReadinessFinding {
   const dimension = RULE_DIMENSION[item.rule] ?? 'actions'
   return {
@@ -154,7 +148,7 @@ function gradeFor(score: number): AgentReadinessGrade {
 export function evaluateAgentReadiness(options: AuditOptions = {}): AgentReadinessEvaluation {
   const root = options.root ?? document
   const doc = ownerDocument(root)
-  const items = collectGuideItems(root, options.steps ?? [], options.autoDiscover !== false)
+  const items = collectGuideItems(root, options.steps ?? [], options.autoDiscover !== false, { readOnly: options.readOnly })
   const actions = items.filter((item) => item.kind === 'action')
   const findings = [...auditPage(options), ...auditGuidance(options)].map(serializedFinding)
 
@@ -167,7 +161,7 @@ export function evaluateAgentReadiness(options: AuditOptions = {}): AgentReadine
       dimension: 'safety',
       message: `“${item.title}” may create a consequential effect, but its boundary is not described.`,
       recommendation: RECOMMENDATIONS['inferred-consequence-guidance'],
-      selector: selectorFor(item.element),
+      selector: item.selector,
       deduction: IMPACT_DEDUCTION.moderate,
     })
   })

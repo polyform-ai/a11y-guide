@@ -37,6 +37,44 @@ describe('evaluateAgentReadiness', () => {
     ]))
     expect(result.findings.every((item) => item.dimension && item.recommendation && item.deduction > 0)).toBe(true)
   })
+
+  it('does not add target attributes during a read-only audit', () => {
+    goodPage()
+    const before = document.body.innerHTML
+    const result = evaluateAgentReadiness({ readOnly: true })
+
+    expect(result.score).toBe(100)
+    expect(document.body.innerHTML).toBe(before)
+    expect(result.manifest.items.every((item) => document.querySelector(item.selector))).toBe(true)
+  })
+
+  it('uses unique finding selectors when a page contains duplicate ids', () => {
+    document.title = 'Duplicate controls'
+    document.documentElement.lang = 'en'
+    document.body.innerHTML = '<main><h1>Actions</h1><div id="duplicate" role="button">First</div><div id="duplicate" role="button">Second</div></main>'
+
+    const findings = evaluateAgentReadiness({ readOnly: true }).findings
+      .filter((item) => item.rule === 'custom-control-keyboard')
+
+    expect(findings.map((item) => item.selector)).toHaveLength(2)
+    expect(new Set(findings.map((item) => item.selector)).size).toBe(2)
+    expect(findings.map((item) => document.querySelector(item.selector!)?.textContent)).toEqual(['First', 'Second'])
+  })
+
+  it('normalizes a non-unique authored selector during read-only evaluation', () => {
+    document.title = 'Authored controls'
+    document.documentElement.lang = 'en'
+    document.body.innerHTML = '<main><h1>Actions</h1><button class="purchase-button">Buy first</button><button class="purchase-button">Buy second</button></main>'
+    const result = evaluateAgentReadiness({
+      readOnly: true,
+      autoDiscover: false,
+      steps: [{ id: 'purchase', selector: '.purchase-button', title: 'Buy first' }],
+    })
+    const selector = result.manifest.items[0]?.selector
+
+    expect(selector).not.toBe('.purchase-button')
+    expect(document.querySelectorAll(selector!)).toHaveLength(1)
+  })
 })
 
 describe('renderAgentReadyReport', () => {
@@ -55,5 +93,46 @@ describe('renderAgentReadyReport', () => {
 
   it('requires at least one page', () => {
     expect(() => renderAgentReadyReport({ pages: [] })).toThrow('At least one page')
+  })
+
+  it('groups repeated findings and includes a copyable remediation prompt', () => {
+    document.title = 'Repeated controls'
+    document.documentElement.lang = 'en'
+    document.body.innerHTML = '<main><h1>Actions</h1><div role="button">First</div><div role="button">Second</div></main>'
+    const page = evaluateAgentReadiness({ readOnly: true })
+    const html = renderAgentReadyReport({ title: 'Repeated controls report', pages: [page] })
+
+    expect(html.match(/A custom interactive element is not keyboard focusable/g)).toHaveLength(1)
+    expect(html).toContain('2 occurrences')
+    expect(html).toContain('View affected pages and selectors')
+    expect(html).toContain('Give this remediation prompt to a coding agent')
+    expect(html).toContain('Find and fix shared components or templates first')
+  })
+
+  it('groups the same finding once across multiple pages with page attribution', () => {
+    document.title = 'First page'
+    document.documentElement.lang = 'en'
+    document.body.innerHTML = '<main><h1>Actions</h1><div role="button">One</div><div role="button">Two</div></main>'
+    const first = evaluateAgentReadiness({ readOnly: true })
+    const second = { ...first, page: { ...first.page, title: 'Second page', url: 'https://example.com/second' } }
+    const html = renderAgentReadyReport({ pages: [first, second] })
+
+    expect(html.match(/A custom interactive element is not keyboard focusable/g)).toHaveLength(1)
+    expect(html).toContain('4 occurrences across 2 pages')
+    expect(html).toContain('Second page')
+    expect(html).toContain('https://example.com/second')
+  })
+
+  it('orders site-wide finding groups by severity and occurrence count', () => {
+    document.title = 'Moderate page'
+    document.body.innerHTML = '<main><h1>Actions</h1><div role="button" tabindex="0">One</div></main>'
+    const moderatePage = evaluateAgentReadiness({ readOnly: true })
+    document.title = 'Critical page'
+    document.body.innerHTML = '<main><h1>Actions</h1><button></button></main>'
+    const criticalPage = evaluateAgentReadiness({ readOnly: true })
+    const html = renderAgentReadyReport({ pages: [moderatePage, criticalPage] })
+    const siteFindings = html.split('<section class="site-findings">')[1] ?? ''
+
+    expect(siteFindings.indexOf('action-name')).toBeLessThan(siteFindings.indexOf('custom-control-native-html'))
   })
 })
