@@ -25,6 +25,7 @@
     "dist",
     "docs",
     "examples",
+    "scripts",
     "README.md",
     "LICENSE"
   ],
