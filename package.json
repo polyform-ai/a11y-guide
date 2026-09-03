@@ -1,6 +1,6 @@
 {
   "name": "@polyform-ai/a11y-guide",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Accessible, author-guided navigation and lightweight DOM auditing for any website.",
   "author": "Polyform",
   "homepage": "https://github.com/polyform-ai/a11y-guide#readme",
