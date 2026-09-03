@@ -55,4 +55,16 @@ describe('auditPage', () => {
     `
     expect(auditGuidance()).toEqual([])
   })
+
+  it('does not mistake image alternative text for a visible link label', () => {
+    document.body.innerHTML = '<main><h1>Examples</h1><a href="/capture" aria-label="Open capture full size"><img src="capture.png" alt="Northlane report"></a></main>'
+    expect(auditGuidance()).toEqual([])
+  })
+
+  it('only flags duplicate link names when they lead to different destinations', () => {
+    document.title = 'Links'
+    document.documentElement.lang = 'en'
+    document.body.innerHTML = '<main><h1>Links</h1><a href="/one">Read more</a><a href="/two">Read more</a></main>'
+    expect(auditPage().map((item) => item.rule)).toContain('duplicate-action-name')
+  })
 })

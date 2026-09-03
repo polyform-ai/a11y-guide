@@ -67,7 +67,7 @@ export function auditPage(options: AuditOptions = {}): AuditFinding[] {
   })
 
   const actionNames = new Map<string, HTMLElement[]>()
-  query<HTMLElement>('button, a[href], input[type="button"], input[type="submit"], [role="button"], [role="link"]').filter(isVisible).forEach((element) => {
+  query<HTMLAnchorElement>('a[href]').filter(isVisible).forEach((element) => {
     const name = normalized(accessibleName(element))
     if (!name) return
     const matches = actionNames.get(name) ?? []
@@ -76,7 +76,7 @@ export function auditPage(options: AuditOptions = {}): AuditFinding[] {
   })
   actionNames.forEach((elements, name) => {
     if (elements.length < 2) return
-    const destinations = new Set(elements.map((element) => element instanceof HTMLAnchorElement ? element.href : element.getAttribute('formaction') ?? 'action'))
+    const destinations = new Set(elements.map((element) => (element as HTMLAnchorElement).href))
     if (destinations.size > 1) {
       findings.push(finding('duplicate-action-name', 'moderate', `The action name "${name}" is used for different destinations or effects.`, elements[0]))
     }

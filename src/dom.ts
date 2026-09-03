@@ -56,7 +56,9 @@ export function visibleText(element: HTMLElement): string {
   if (element instanceof HTMLInputElement && ['button', 'submit', 'reset'].includes(element.type.toLowerCase())) {
     return normalized(element.value)
   }
-  return subtreeText(element)
+  // Alternative text can contribute to an accessible name, but it is not a
+  // visibly rendered label for label-in-name comparisons.
+  return normalized(element.textContent)
 }
 
 export function isVisible(element: HTMLElement): boolean {
