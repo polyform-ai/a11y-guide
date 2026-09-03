@@ -8,6 +8,7 @@ Thanks for helping make `@polyform/a11y-guide` more useful and accessible.
 - Keep the package dependency-free at runtime unless a dependency has a clear accessibility or maintenance benefit.
 - Prefer native HTML semantics over adding ARIA or keyboard behavior to generic elements.
 - Include tests for behavior changes.
+- Prompt and example pull requests should include the ambiguity they address and the human or browser-agent evidence used to evaluate them.
 
 ## Local development
 
@@ -23,5 +24,7 @@ npm run check
 ## Pull requests
 
 Explain the user-facing accessibility outcome, the browsers or assistive technologies you exercised when relevant, and any limits that remain. Automated checks are useful evidence, but they do not replace keyboard and assistive-technology testing.
+
+The manifest is a public interoperability surface. Propose contract changes in an issue before changing field meaning or removing a field.
 
 By contributing, you agree that your contributions will be licensed under the MIT License.

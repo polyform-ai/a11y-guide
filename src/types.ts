@@ -62,7 +62,7 @@ export interface GuideManifestItem extends Omit<GuideStep, 'kind'> {
 }
 
 export interface GuideManifest {
-  schema: 'https://github.com/polyform-ai/a11y-guide/manifest/v1'
+  schema: 'https://github.com/polyform-ai/a11y-guide/blob/main/docs/manifest-v1.md'
   version: 1
   page: {
     title: string

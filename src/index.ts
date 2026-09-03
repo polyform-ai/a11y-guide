@@ -43,7 +43,7 @@ function focusTarget(item: ResolvedGuideStep, shouldScroll: boolean): void {
 
 function manifestFor(doc: Document, items: ResolvedGuideStep[]): GuideManifest {
   return {
-    schema: 'https://github.com/polyform-ai/a11y-guide/manifest/v1',
+    schema: 'https://github.com/polyform-ai/a11y-guide/blob/main/docs/manifest-v1.md',
     version: 1,
     page: {
       title: doc.title,

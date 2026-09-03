@@ -138,6 +138,8 @@ Computer-use systems commonly work from pixels, semantic DOM or accessibility-tr
 
 Code can also call `guide.getManifest()`. Set `exposeManifest: false` if a site should keep the snapshot programmatic only. Never place secrets, hidden business rules, personal data, or instructions that conflict with the visible interface in guidance metadata.
 
+The full field contract and consumer safety rules are in [Page guide manifest v1](docs/manifest-v1.md).
+
 ## E-commerce pattern
 
 Make the selection and consequence legible before the purchase action:
