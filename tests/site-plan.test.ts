@@ -119,4 +119,25 @@ describe('selectRepresentativeSiteRoutes', () => {
 
     expect(plan.routes[1]).toMatchObject({ kind: 'section', url: 'https://example.com/topics/industry/artificial-intelligence' })
   })
+
+  it('falls back to safe defaults for non-finite page and detail limits', () => {
+    const sections = Array.from({ length: 20 }, (_, index) => ({ href: `/section-${index}`, context: 'navigation' as const }))
+    const details = Array.from({ length: 10 }, (_, index) => ({ href: `/story-${index}`, context: 'article' as const }))
+
+    const pagePlan = selectRepresentativeSiteRoutes({
+      startUrl: 'https://example.com/',
+      maxPages: Number.POSITIVE_INFINITY,
+      maxDetailPages: 0,
+      links: sections,
+    })
+    const detailPlan = selectRepresentativeSiteRoutes({
+      startUrl: 'https://example.com/',
+      maxPages: 20,
+      maxDetailPages: Number.NaN,
+      links: details,
+    })
+
+    expect(pagePlan.routes).toHaveLength(12)
+    expect(detailPlan.routes.filter((route) => route.kind === 'detail')).toHaveLength(2)
+  })
 })

@@ -104,8 +104,22 @@ describe('renderAgentReadyReport', () => {
 
     expect(html.match(/A custom interactive element is not keyboard focusable/g)).toHaveLength(1)
     expect(html).toContain('2 occurrences')
-    expect(html).toContain('View 2 affected selectors')
+    expect(html).toContain('View affected pages and selectors')
     expect(html).toContain('Give this remediation prompt to a coding agent')
     expect(html).toContain('Find and fix shared components or templates first')
+  })
+
+  it('groups the same finding once across multiple pages with page attribution', () => {
+    document.title = 'First page'
+    document.documentElement.lang = 'en'
+    document.body.innerHTML = '<main><h1>Actions</h1><div role="button">One</div><div role="button">Two</div></main>'
+    const first = evaluateAgentReadiness({ readOnly: true })
+    const second = { ...first, page: { ...first.page, title: 'Second page', url: 'https://example.com/second' } }
+    const html = renderAgentReadyReport({ pages: [first, second] })
+
+    expect(html.match(/A custom interactive element is not keyboard focusable/g)).toHaveLength(1)
+    expect(html).toContain('4 occurrences across 2 pages')
+    expect(html).toContain('Second page')
+    expect(html).toContain('https://example.com/second')
   })
 })

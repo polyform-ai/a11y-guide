@@ -2,7 +2,7 @@
 
 `evaluateAgentReadiness()` produces a deterministic estimate of how clearly a rendered page exposes itself to browser agents. `renderAgentReadyReport()` combines one or more evaluations into a standalone HTML report.
 
-The HTML report groups repeated identical findings on each page, shows their occurrence count, and keeps the affected selectors in a collapsed list. Its copy-ready remediation prompt aggregates findings by rule across pages so a coding agent can fix shared components and templates before individual occurrences.
+The HTML report groups repeated identical findings once across the whole site, shows their occurrence and page counts, and keeps affected pages and selectors in a collapsed list. Its copy-ready remediation prompt aggregates findings by rule so a coding agent can fix shared components and templates before individual occurrences.
 
 The score is intentionally explainable. Each page starts at 100 in five dimensions. Findings deduct points inside their dimension, stopping at zero:
 

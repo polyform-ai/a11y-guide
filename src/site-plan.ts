@@ -79,6 +79,11 @@ function sectionFamily(pathname: string): string {
   return `/${segments[0]}`
 }
 
+function finiteLimit(value: number | undefined, fallback: number, minimum: number): number {
+  if (value === undefined || !Number.isFinite(value)) return fallback
+  return Math.max(minimum, Math.floor(value))
+}
+
 /**
  * Selects a bounded, representative same-site audit plan from rendered links.
  * It never recursively crawls selected pages, strips query/hash variants, and
@@ -88,8 +93,8 @@ function sectionFamily(pathname: string): string {
 export function selectRepresentativeSiteRoutes(options: RepresentativeSitePlanOptions): RepresentativeSitePlan {
   const start = new URL(options.startUrl)
   const startPath = normalizedPath(start.pathname)
-  const maxPages = Math.max(1, Math.floor(options.maxPages ?? 12))
-  const maxDetailPages = Math.max(0, Math.floor(options.maxDetailPages ?? 2))
+  const maxPages = finiteLimit(options.maxPages, 12, 1)
+  const maxDetailPages = finiteLimit(options.maxDetailPages, 2, 0)
   const excluded = { external: 0, asset: 0, utility: 0, duplicate: 0, detailLimit: 0, pageLimit: 0 }
   const candidates: Array<RepresentativeSiteRoute & { index: number; pathname: string; preferred: boolean; preferredRank: number }> = []
   const seen = new Set<string>([startPath])
