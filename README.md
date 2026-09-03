@@ -200,6 +200,19 @@ inspector.destroy()
 
 This is a development aid, not an exact accessibility-tree viewer and not a substitute for assistive-technology testing. A dedicated browser DevTools extension that combines this overlay, the browser accessibility tree, audit findings, and manifest editing is on the community roadmap.
 
+If the trigger competes with another fixed surface, such as cookie consent or
+chat, move it without reaching into the Shadow DOM:
+
+```css
+[data-a11y-guide-ui] {
+  --a11y-guide-bottom: 12rem;
+  --a11y-guide-right: 1.5rem;
+}
+```
+
+`--a11y-guide-left` is also available when the trigger belongs on the opposite
+side. Keep the trigger clear of required controls at every viewport.
+
 ## Audit a page
 
 ```ts

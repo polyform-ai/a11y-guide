@@ -7,7 +7,7 @@ export { auditGuidance, auditPage, type AuditFinding, type AuditImpact, type Aud
 export { collectGuideItems, discoverGuideSteps } from './discover.js'
 
 const STYLE = `
-:host{all:initial;position:fixed;z-index:2147483000;right:1rem;bottom:1rem;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172019;color-scheme:light}
+:host{all:initial;position:fixed;z-index:2147483000;right:var(--a11y-guide-right,1rem);bottom:var(--a11y-guide-bottom,1rem);left:var(--a11y-guide-left,auto);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172019;color-scheme:light}
 *{box-sizing:border-box}
 button{font:inherit}
 .toggle{min-height:44px;padding:.75rem 1rem;border:2px solid #172019;border-radius:999px;background:#fff;color:#172019;font-weight:700;box-shadow:0 8px 30px rgba(23,32,25,.18);cursor:pointer}
