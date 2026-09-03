@@ -58,10 +58,11 @@ function pathSegments(pathname: string): string[] {
 
 function looksLikeDetail(pathname: string, context: SiteLinkContext): boolean {
   const segments = pathSegments(pathname)
+  if (context === 'navigation' || context === 'header') return false
   if (DATE_PATH.test(pathname) || context === 'article' || segments.length >= 3) return true
   if (segments.length >= 2 && DETAIL_ROOT.has(segments[0]!.toLowerCase())) return true
   const finalSegment = segments.at(-1) ?? ''
-  return segments.length >= 2 && (finalSegment.length > 48 || finalSegment.split('-').length >= 5)
+  return finalSegment.length > 48 || finalSegment.split('-').length >= 5
 }
 
 function contextRank(context: SiteLinkContext): number {
@@ -89,17 +90,23 @@ export function selectRepresentativeSiteRoutes(options: RepresentativeSitePlanOp
   const maxPages = Math.max(1, Math.floor(options.maxPages ?? 12))
   const maxDetailPages = Math.max(0, Math.floor(options.maxDetailPages ?? 2))
   const excluded = { external: 0, asset: 0, utility: 0, duplicate: 0, detailLimit: 0, pageLimit: 0 }
-  const candidates: Array<RepresentativeSiteRoute & { index: number; pathname: string; preferred: boolean }> = []
+  const candidates: Array<RepresentativeSiteRoute & { index: number; pathname: string; preferred: boolean; preferredRank: number }> = []
   const seen = new Set<string>([startPath])
+  const preferredRanks = new Map<string, number>()
 
-  const preferredCount = options.preferredPaths?.length ?? 0
+  options.preferredPaths?.forEach((href, index) => {
+    try {
+      const url = new URL(href, start)
+      if (['http:', 'https:'].includes(url.protocol) && hostKey(url.hostname) === hostKey(start.hostname)) {
+        const pathname = normalizedPath(url.pathname)
+        if (!preferredRanks.has(pathname)) preferredRanks.set(pathname, index)
+      }
+    } catch {
+      // Invalid preferred paths cannot match a supplied link.
+    }
+  })
 
-  const supplied: SiteLinkCandidate[] = [
-    ...(options.preferredPaths ?? []).map((href) => ({ href, context: 'navigation' as const })),
-    ...options.links,
-  ]
-
-  supplied.forEach((link, index) => {
+  options.links.forEach((link, index) => {
     let url: URL
     try {
       url = new URL(link.href, start)
@@ -125,6 +132,8 @@ export function selectRepresentativeSiteRoutes(options: RepresentativeSitePlanOp
       return
     }
     seen.add(pathname)
+    const preferredRank = preferredRanks.get(pathname)
+    const preferred = preferredRank !== undefined
     const context = link.context ?? 'unknown'
     candidates.push({
       url: `${start.protocol}//${start.host}${pathname}`,
@@ -133,11 +142,14 @@ export function selectRepresentativeSiteRoutes(options: RepresentativeSitePlanOp
       label: link.text?.replace(/\s+/g, ' ').trim() || undefined,
       context,
       index,
-      preferred: index < preferredCount,
+      preferred,
+      preferredRank: preferredRank ?? Number.MAX_SAFE_INTEGER,
     })
   })
 
   const sections = candidates.filter((route) => route.kind === 'section').sort((left, right) => {
+    const preferred = left.preferredRank - right.preferredRank
+    if (preferred) return preferred
     const rank = contextRank(left.context ?? 'unknown') - contextRank(right.context ?? 'unknown')
     if (rank) return rank
     const depth = pathSegments(left.pathname).length - pathSegments(right.pathname).length

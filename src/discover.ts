@@ -43,7 +43,8 @@ function isUnique(root: Document | HTMLElement, selector: string): boolean {
   }
 }
 
-function structuralSelector(element: HTMLElement, root: Document | HTMLElement): string {
+/** Returns a non-mutating selector that uniquely identifies an element within the audit root. */
+export function selectorForElement(element: HTMLElement, root: Document | HTMLElement): string {
   const parts: string[] = []
   const boundary = root.nodeType === 1 ? root as HTMLElement : null
   let current: HTMLElement | null = element
@@ -76,7 +77,7 @@ function selectorFor(element: HTMLElement, index: number, root: Document | HTMLE
   const guideId = element.dataset.a11yGuideId
   const guideSelector = guideId ? `[data-a11y-guide-id="${cssEscape(guideId)}"]` : ''
   if (guideSelector && isUnique(root, guideSelector)) return guideSelector
-  if (readOnly) return structuralSelector(element, root)
+  if (readOnly) return selectorForElement(element, root)
   const generatedId = `a11y-guide-target-${index + 1}`
   element.dataset.a11yGuideId = generatedId
   return `[data-a11y-guide-id="${generatedId}"]`

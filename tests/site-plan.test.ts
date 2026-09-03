@@ -63,7 +63,9 @@ describe('selectRepresentativeSiteRoutes', () => {
       maxDetailPages: 0,
       preferredPaths: ['/vertical/agencies/', '/vertical/media/'],
       links: [
+        { href: '/vertical/media/', text: 'Media', context: 'main' },
         { href: '/about/', text: 'About', context: 'navigation' },
+        { href: '/vertical/agencies/', text: 'Agencies', context: 'main' },
         { href: '/contact/', text: 'Contact', context: 'navigation' },
       ],
     })
@@ -71,5 +73,36 @@ describe('selectRepresentativeSiteRoutes', () => {
     expect(plan.routes.map((route) => new URL(route.url).pathname)).toEqual([
       '/', '/vertical/agencies', '/vertical/media', '/about',
     ])
+  })
+
+  it('does not visit a preferred path that was not linked from the start page', () => {
+    const plan = selectRepresentativeSiteRoutes({
+      startUrl: 'https://example.com/',
+      preferredPaths: ['/unlinked-section/'],
+      links: [{ href: '/linked-section/', context: 'navigation' }],
+    })
+
+    expect(plan.routes.map((route) => new URL(route.url).pathname)).toEqual(['/', '/linked-section'])
+  })
+
+  it('counts root-level article slugs against the detail cap', () => {
+    const plan = selectRepresentativeSiteRoutes({
+      startUrl: 'https://example.com/',
+      maxDetailPages: 0,
+      links: [{ href: '/breaking-news-headline-with-many-words', context: 'main' }],
+    })
+
+    expect(plan.routes).toHaveLength(1)
+    expect(plan.excluded.detailLimit).toBe(1)
+  })
+
+  it('preserves deep navigation routes as sections', () => {
+    const plan = selectRepresentativeSiteRoutes({
+      startUrl: 'https://example.com/',
+      maxDetailPages: 0,
+      links: [{ href: '/topics/industry/artificial-intelligence', context: 'navigation' }],
+    })
+
+    expect(plan.routes[1]).toMatchObject({ kind: 'section', url: 'https://example.com/topics/industry/artificial-intelligence' })
   })
 })

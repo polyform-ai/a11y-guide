@@ -47,6 +47,19 @@ describe('evaluateAgentReadiness', () => {
     expect(document.body.innerHTML).toBe(before)
     expect(result.manifest.items.every((item) => document.querySelector(item.selector))).toBe(true)
   })
+
+  it('uses unique finding selectors when a page contains duplicate ids', () => {
+    document.title = 'Duplicate controls'
+    document.documentElement.lang = 'en'
+    document.body.innerHTML = '<main><h1>Actions</h1><div id="duplicate" role="button">First</div><div id="duplicate" role="button">Second</div></main>'
+
+    const findings = evaluateAgentReadiness({ readOnly: true }).findings
+      .filter((item) => item.rule === 'custom-control-keyboard')
+
+    expect(findings.map((item) => item.selector)).toHaveLength(2)
+    expect(new Set(findings.map((item) => item.selector)).size).toBe(2)
+    expect(findings.map((item) => document.querySelector(item.selector!)?.textContent)).toEqual(['First', 'Second'])
+  })
 })
 
 describe('renderAgentReadyReport', () => {
