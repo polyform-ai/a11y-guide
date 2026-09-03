@@ -1,9 +1,10 @@
-import { discoverGuideSteps, resolveGuideSteps } from './discover.js'
+import { collectGuideItems, discoverGuideSteps } from './discover.js'
+import { accessibleName, exposedState, implicitRole, isDisabled, visibleText } from './dom.js'
 import type { GuideController, GuideManifest, GuideOptions, ResolvedGuideStep } from './types.js'
 
-export type { GuideContext, GuideContextValue, GuideController, GuideItemKind, GuideManifest, GuideManifestItem, GuideOptions, GuideStep, ResolvedGuideStep } from './types.js'
-export { auditPage, type AuditFinding, type AuditImpact, type AuditOptions } from './audit.js'
-export { discoverGuideSteps } from './discover.js'
+export type { GuideActionType, GuideConfirmation, GuideContext, GuideContextValue, GuideController, GuideItemKind, GuideManifest, GuideManifestItem, GuideOptions, GuideStep, ResolvedGuideStep } from './types.js'
+export { auditGuidance, auditPage, type AuditFinding, type AuditImpact, type AuditOptions } from './audit.js'
+export { collectGuideItems, discoverGuideSteps } from './discover.js'
 
 const STYLE = `
 :host{all:initial;position:fixed;z-index:2147483000;right:1rem;bottom:1rem;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172019;color-scheme:light}
@@ -54,8 +55,11 @@ function manifestFor(doc: Document, items: ResolvedGuideStep[]): GuideManifest {
       ...item,
       element: {
         tagName: element.tagName.toLowerCase(),
-        role: element.getAttribute('role') || undefined,
-        disabled: element.matches(':disabled, [aria-disabled="true"]'),
+        role: implicitRole(element),
+        accessibleName: accessibleName(element),
+        visibleText: item.kind === 'action' ? visibleText(element) || undefined : undefined,
+        disabled: isDisabled(element),
+        state: exposedState(element),
       },
     })),
   }
@@ -83,9 +87,11 @@ export function createGuide(options: GuideOptions = {}): GuideController {
 
   const panel = doc.createElement('section')
   panel.className = 'panel'
+  panel.id = `a11y-guide-panel-${Math.random().toString(36).slice(2)}`
   panel.hidden = true
   panel.setAttribute('role', 'dialog')
   panel.setAttribute('aria-modal', 'false')
+  toggle.setAttribute('aria-controls', panel.id)
 
   const head = doc.createElement('div')
   head.className = 'head'
@@ -121,18 +127,21 @@ export function createGuide(options: GuideOptions = {}): GuideController {
   let destroyed = false
   let refreshTimer: ReturnType<typeof setTimeout> | undefined
 
-  const close = (): void => {
+  const hide = (restoreFocus: boolean): void => {
     if (panel.hidden) return
     panel.hidden = true
     toggle.setAttribute('aria-expanded', 'false')
-    toggle.focus()
+    if (restoreFocus) toggle.focus()
   }
+
+  const close = (): void => hide(true)
 
   const goTo = (id: string): boolean => {
     const item = items.find((candidate) => candidate.id === id)
     if (!item) return false
+    if (options.closeOnNavigate !== false) hide(false)
     focusTarget(item, options.scroll !== false)
-    status.textContent = item.description ? `${item.title}. ${item.description}` : item.title
+    status.textContent = [item.title, item.description, item.outcome].filter(Boolean).join('. ')
     return true
   }
 
@@ -156,6 +165,17 @@ export function createGuide(options: GuideOptions = {}): GuideController {
         description.textContent = item.description
         button.append(description)
       }
+      const details = [
+        item.requirements?.length ? `Before: ${item.requirements.join('; ')}` : undefined,
+        item.outcome ? `Result: ${item.outcome}` : undefined,
+        item.doesNot ? `Does not: ${item.doesNot}` : undefined,
+        item.completion ? `Success: ${item.completion}` : undefined,
+      ].filter((value): value is string => Boolean(value))
+      details.forEach((value) => {
+        const detail = doc.createElement('span')
+        detail.textContent = value
+        button.append(detail)
+      })
       button.addEventListener('click', () => goTo(item.id))
       row.append(button)
       list.append(row)
@@ -165,12 +185,7 @@ export function createGuide(options: GuideOptions = {}): GuideController {
 
   const refresh = (): void => {
     if (destroyed) return
-    const discovered = options.autoDiscover === false ? [] : discoverGuideSteps(root)
-    const authored = options.steps ?? []
-    const authoredItems = resolveGuideSteps(root, authored)
-    const authoredElements = new Set(authoredItems.map((item) => item.element))
-    const discoveredItems = resolveGuideSteps(root, discovered).filter((item) => !authoredElements.has(item.element))
-    items = [...authoredItems, ...discoveredItems]
+    items = collectGuideItems(root, options.steps ?? [], options.autoDiscover !== false)
     manifest.textContent = JSON.stringify(manifestFor(doc, items))
     body.replaceChildren()
     renderGroup('Sections', items.filter((item) => item.kind === 'section'))
@@ -202,12 +217,19 @@ export function createGuide(options: GuideOptions = {}): GuideController {
   doc.addEventListener('keydown', handleEscape)
 
   const Observer = doc.defaultView?.MutationObserver
-  const observer = options.observe === false || !Observer ? undefined : new Observer((mutations) => {
-    if (mutations.every((mutation) => (mutation.target as Element).closest?.('[data-a11y-guide-ui]'))) return
+  const scheduleRefresh = (): void => {
     clearTimeout(refreshTimer)
     refreshTimer = setTimeout(refresh, 50)
+  }
+  const observer = options.observe === false || !Observer ? undefined : new Observer((mutations) => {
+    if (mutations.every((mutation) => (mutation.target as Element).closest?.('[data-a11y-guide-ui]'))) return
+    scheduleRefresh()
   })
-  observer?.observe(root.nodeType === 9 ? (root as Document).body : root, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'open', 'hidden', 'aria-hidden', 'aria-label', 'aria-selected', 'aria-disabled', 'disabled', 'data-a11y-guide', 'data-a11y-guide-description', 'data-a11y-guide-outcome', 'data-a11y-guide-requires', 'data-a11y-guide-context'] })
+  observer?.observe(root.nodeType === 9 ? (root as Document).body : root, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'open', 'hidden', 'inert', 'aria-hidden', 'aria-label', 'aria-labelledby', 'aria-describedby', 'aria-selected', 'aria-disabled', 'aria-expanded', 'aria-pressed', 'disabled', 'data-a11y-guide', 'data-a11y-guide-action', 'data-a11y-guide-description', 'data-a11y-guide-outcome', 'data-a11y-guide-does-not', 'data-a11y-guide-confirmation', 'data-a11y-guide-completion', 'data-a11y-guide-requires', 'data-a11y-guide-context'] })
+  if (options.observe !== false) {
+    root.addEventListener('input', scheduleRefresh)
+    root.addEventListener('change', scheduleRefresh)
+  }
   refresh()
 
   return {
@@ -221,6 +243,8 @@ export function createGuide(options: GuideOptions = {}): GuideController {
       destroyed = true
       clearTimeout(refreshTimer)
       observer?.disconnect()
+      root.removeEventListener('input', scheduleRefresh)
+      root.removeEventListener('change', scheduleRefresh)
       doc.removeEventListener('keydown', handleEscape)
       host.remove()
     },

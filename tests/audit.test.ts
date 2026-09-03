@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it } from 'vitest'
-import { auditPage } from '../src/audit.js'
+import { auditGuidance, auditPage } from '../src/audit.js'
 
 afterEach(() => {
   document.body.replaceChildren()
@@ -37,5 +37,22 @@ describe('auditPage', () => {
     document.documentElement.lang = 'en'
     document.body.innerHTML = '<main><h1>Contact</h1><select><option>Choose one</option></select></main>'
     expect(auditPage().map((item) => item.rule)).toContain('form-label')
+  })
+
+  it('reports ambiguous, unsafe, and incomplete consequential guidance', () => {
+    document.body.innerHTML = `
+      <main><h1>Cart</h1><button id="buy" aria-label="Purchase now" data-a11y-guide="Continue" data-a11y-guide-action="purchase" data-a11y-guide-confirmation="none" data-a11y-guide-context='{"customerEmail":"private@example.com"}'>Pay $36</button></main>
+    `
+    expect(auditGuidance().map((item) => item.rule)).toEqual(expect.arrayContaining([
+      'guide-label-in-name', 'guide-ambiguous-action', 'guide-consequence', 'guide-completion',
+      'guide-confirmation', 'guide-sensitive-context',
+    ]))
+  })
+
+  it('accepts a described purchase with an explicit confirmation boundary', () => {
+    document.body.innerHTML = `
+      <main><h1>Cart</h1><button data-a11y-guide-action="purchase" data-a11y-guide-outcome="Charges $36 and creates the order." data-a11y-guide-completion="An order number is displayed and announced." data-a11y-guide-confirmation="explicit">Place order — $36</button></main>
+    `
+    expect(auditGuidance()).toEqual([])
   })
 })

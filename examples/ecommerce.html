@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Agent-view commerce example</title>
+    <style>
+      :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #172019; background: #f4f6f1; }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      main { width: min(68rem, calc(100% - 2rem)); margin: 0 auto; padding: 3rem 0 6rem; }
+      h1 { max-width: 14ch; font-size: clamp(2.2rem, 7vw, 5rem); line-height: .95; letter-spacing: -.055em; }
+      .lede { max-width: 44rem; font-size: 1.15rem; line-height: 1.6; color: #425047; }
+      .toolbar, .grid { display: grid; gap: 1rem; }
+      .toolbar { grid-template-columns: repeat(auto-fit, minmax(13rem, max-content)); margin: 2rem 0; }
+      .grid { grid-template-columns: minmax(0, 1.4fr) minmax(17rem, .8fr); align-items: start; }
+      .card { padding: clamp(1.25rem, 4vw, 2.25rem); border: 1px solid #cbd5cc; border-radius: 1rem; background: white; box-shadow: 0 14px 38px rgba(23, 32, 25, .08); }
+      .eyebrow { color: #376345; font-size: .75rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+      .price { font-size: 1.35rem; font-weight: 750; }
+      .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+      label { display: block; margin-bottom: .4rem; font-weight: 700; }
+      select, button { min-height: 44px; border: 2px solid #172019; border-radius: .65rem; font: inherit; }
+      select { width: 100%; padding: .65rem .75rem; background: white; color: #172019; }
+      button { padding: .7rem 1rem; background: #173e29; color: white; font-weight: 750; cursor: pointer; }
+      button.secondary { background: white; color: #172019; }
+      button:disabled { border-color: #9ba59e; background: #dfe4df; color: #68736b; cursor: not-allowed; }
+      button:focus-visible, select:focus-visible { outline: 4px solid #86b995; outline-offset: 3px; }
+      .primary { width: 100%; }
+      .note, .status { margin-top: 1rem; line-height: 1.5; }
+      .note { color: #526057; font-size: .9rem; }
+      .status { min-height: 1.5rem; font-weight: 700; }
+      dl { display: grid; grid-template-columns: 1fr auto; gap: .7rem 1rem; }
+      dt, dd { margin: 0; }
+      dd { font-variant-numeric: tabular-nums; font-weight: 700; }
+      pre { max-height: 20rem; overflow: auto; padding: 1rem; border-radius: .75rem; background: #172019; color: #eef5ef; font-size: .78rem; white-space: pre-wrap; }
+      @media (max-width: 700px) { .grid, .fields { grid-template-columns: 1fr; } main { padding-top: 1.5rem; } }
+    </style>
+  </head>
+  <body>
+    <main id="main-content">
+      <p class="eyebrow">Runnable example</p>
+      <h1>See what people and agents can understand.</h1>
+      <p class="lede">Change the product state, inspect the guide manifest, and turn on the agent-view overlay. This is a safe demo: no account, order, or payment is created.</p>
+
+      <div class="toolbar" aria-label="Development tools">
+        <button id="toggle-inspector" class="secondary" type="button">Show agent-view overlay</button>
+        <button id="show-manifest" class="secondary" type="button">Show guide manifest</button>
+        <button id="run-audit" class="secondary" type="button">Run guidance audit</button>
+      </div>
+
+      <div class="grid">
+        <form id="product" class="card" data-a11y-guide="Configure House Coffee" data-a11y-guide-description="Choose a grind and quantity before adding this demo product to the cart.">
+          <p class="eyebrow">House Coffee</p>
+          <h2>One-kilogram bag</h2>
+          <p id="unit-price" class="price">$18 per bag</p>
+
+          <div class="fields">
+            <div>
+              <label for="grind">Grind</label>
+              <select id="grind" name="grind" required>
+                <option value="whole">Whole bean</option>
+                <option value="filter">Filter</option>
+                <option value="espresso">Espresso</option>
+              </select>
+            </div>
+            <div>
+              <label for="quantity">Quantity</label>
+              <select id="quantity" name="quantity" required>
+                <option value="1">1 bag</option>
+                <option value="2" selected>2 bags</option>
+                <option value="3">3 bags</option>
+                <option value="4">4 bags</option>
+              </select>
+            </div>
+          </div>
+
+          <button
+            id="add-to-cart"
+            class="primary"
+            type="submit"
+            aria-describedby="unit-price add-boundary"
+            data-a11y-guide="Add 2 House Coffee bags to cart"
+            data-a11y-guide-action="add-to-cart"
+            data-a11y-guide-outcome="Adds 2 bags to the demo cart."
+            data-a11y-guide-does-not="Checkout or payment does not begin."
+            data-a11y-guide-requires="Choose a grind | Choose a quantity"
+            data-a11y-guide-completion="The cart status announces the new quantity and subtotal."
+            data-a11y-guide-confirmation="none"
+            data-a11y-guide-context='{"product":"House Coffee","sku":"coffee-1kg","unitPrice":18,"currency":"USD","quantity":2}'
+          >Add 2 to cart — $36</button>
+          <p id="add-boundary" class="note">Adds the selected quantity to this demo cart. Checkout and payment are separate.</p>
+          <p id="cart-status" class="status" aria-live="polite"></p>
+        </form>
+
+        <section class="card" aria-labelledby="cart-heading" data-a11y-guide="Review the demo cart" data-a11y-guide-description="Confirm quantity and subtotal before continuing.">
+          <p class="eyebrow">Cart</p>
+          <h2 id="cart-heading">Order summary</h2>
+          <dl>
+            <dt>House Coffee</dt><dd id="cart-quantity">0 bags</dd>
+            <dt>Subtotal</dt><dd id="cart-subtotal">$0</dd>
+          </dl>
+          <button
+            id="review-order"
+            class="primary"
+            type="button"
+            disabled
+            data-a11y-guide="Review demo order"
+            data-a11y-guide-action="submit"
+            data-a11y-guide-outcome="Shows a demo review message."
+            data-a11y-guide-does-not="No order or payment is submitted."
+            data-a11y-guide-requires="Add at least one product to the cart"
+            data-a11y-guide-completion="The page announces that the demo is ready for review."
+            data-a11y-guide-confirmation="review"
+          >Review order</button>
+          <p id="review-status" class="status" aria-live="polite"></p>
+        </section>
+      </div>
+
+      <section aria-labelledby="output-heading">
+        <h2 id="output-heading">Inspector output</h2>
+        <pre id="output" tabindex="0">Choose “Show guide manifest” or “Run guidance audit.”</pre>
+      </section>
+    </main>
+
+    <script type="module">
+      import { auditGuidance, auditPage, createGuide } from '../dist/index.js'
+      import { showGuideOverlay } from '../dist/inspector.js'
+
+      const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+      const quantity = document.querySelector('#quantity')
+      const grind = document.querySelector('#grind')
+      const add = document.querySelector('#add-to-cart')
+      const product = document.querySelector('#product')
+      const cartQuantity = document.querySelector('#cart-quantity')
+      const cartSubtotal = document.querySelector('#cart-subtotal')
+      const cartStatus = document.querySelector('#cart-status')
+      const review = document.querySelector('#review-order')
+      const reviewStatus = document.querySelector('#review-status')
+      const output = document.querySelector('#output')
+      const guide = createGuide({ title: 'Explore the commerce demo' })
+      let inspector
+      let cartCount = 0
+
+      function updateSelection() {
+        const count = Number(quantity.value)
+        const subtotal = count * 18
+        add.textContent = `Add ${count} to cart — ${money.format(subtotal)}`
+        add.dataset.a11yGuide = `Add ${count} House Coffee ${count === 1 ? 'bag' : 'bags'} to cart`
+        add.dataset.a11yGuideOutcome = `Adds ${count} ${count === 1 ? 'bag' : 'bags'} to the demo cart.`
+        add.dataset.a11yGuideContext = JSON.stringify({ product: 'House Coffee', sku: 'coffee-1kg', grind: grind.value, unitPrice: 18, currency: 'USD', quantity: count })
+        guide.refresh()
+        inspector?.refresh()
+      }
+
+      product.addEventListener('submit', (event) => {
+        event.preventDefault()
+        const count = Number(quantity.value)
+        cartCount += count
+        cartQuantity.textContent = `${cartCount} ${cartCount === 1 ? 'bag' : 'bags'}`
+        cartSubtotal.textContent = money.format(cartCount * 18)
+        cartStatus.textContent = `${count} ${count === 1 ? 'bag was' : 'bags were'} added. The cart now has ${cartCount}.`
+        review.disabled = false
+        guide.refresh()
+        inspector?.refresh()
+      })
+      quantity.addEventListener('change', updateSelection)
+      grind.addEventListener('change', updateSelection)
+      review.addEventListener('click', () => {
+        reviewStatus.textContent = `Demo ready for review: ${cartCount} ${cartCount === 1 ? 'bag' : 'bags'}, ${money.format(cartCount * 18)}. No order was submitted.`
+      })
+
+      document.querySelector('#toggle-inspector').addEventListener('click', (event) => {
+        if (inspector) {
+          inspector.destroy()
+          inspector = undefined
+          event.currentTarget.textContent = 'Show agent-view overlay'
+        } else {
+          inspector = showGuideOverlay()
+          event.currentTarget.textContent = 'Hide agent-view overlay'
+        }
+      })
+      document.querySelector('#show-manifest').addEventListener('click', () => {
+        output.textContent = JSON.stringify(guide.getManifest(), null, 2)
+        output.focus()
+      })
+      document.querySelector('#run-audit').addEventListener('click', () => {
+        const findings = [...auditPage(), ...auditGuidance()]
+        output.textContent = findings.length ? JSON.stringify(findings.map(({ element, ...finding }) => finding), null, 2) : 'No built-in audit findings. This is not WCAG certification; continue with keyboard, accessibility-tree, screen-reader, zoom, and agent testing.'
+        output.focus()
+      })
+      updateSelection()
+    </script>
+  </body>
+</html>

@@ -1,4 +1,6 @@
 import type { GuideStep } from './types.js'
+import { collectGuideItems } from './discover.js'
+import { accessibleName, isDisabled, isVisible, visibleText } from './dom.js'
 
 export type AuditImpact = 'critical' | 'serious' | 'moderate'
 
@@ -13,40 +15,7 @@ export interface AuditFinding {
 export interface AuditOptions {
   root?: Document | HTMLElement
   steps?: GuideStep[]
-}
-
-function accessibleName(element: HTMLElement): string {
-  const labelledBy = element.getAttribute('aria-labelledby')
-  if (labelledBy) {
-    const document = element.ownerDocument
-    const label = labelledBy.split(/\s+/).map((id) => document.getElementById(id)?.textContent ?? '').join(' ')
-    if (label.trim()) return label.trim()
-  }
-  const ariaLabel = element.getAttribute('aria-label')
-  if (ariaLabel?.trim()) return ariaLabel.trim()
-  if (element.matches('input, select, textarea')) {
-    const control = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    const explicit = control.id ? control.ownerDocument.querySelector<HTMLLabelElement>(`label[for="${control.id}"]`) : null
-    const wrapping = element.closest('label')
-    const type = control instanceof HTMLInputElement ? control.type.toLowerCase() : ''
-    const nativeValue = control instanceof HTMLInputElement && ['button', 'submit', 'reset'].includes(type) ? control.value : ''
-    return (explicit?.textContent || wrapping?.textContent || element.getAttribute('title') || nativeValue || '').trim()
-  }
-  return (element.getAttribute('alt')
-    || element.getAttribute('title')
-    || element.textContent
-    || '').replace(/\s+/g, ' ').trim()
-}
-
-function visible(element: HTMLElement): boolean {
-  if (element.closest('[hidden], [aria-hidden="true"]')) return false
-  const view = element.ownerDocument.defaultView
-  if (!view) return true
-  for (let current: HTMLElement | null = element; current; current = current.parentElement) {
-    const style = view.getComputedStyle(current)
-    if (style.display === 'none' || style.visibility === 'hidden') return false
-  }
-  return true
+  autoDiscover?: boolean
 }
 
 function selectorFor(element: Element): string {
@@ -86,11 +55,11 @@ export function auditPage(options: AuditOptions = {}): AuditFinding[] {
     if (elements.length > 1) findings.push(finding('duplicate-id', 'serious', `The id "${id}" is used ${elements.length} times.`, elements[0]))
   })
 
-  query<HTMLElement>('button, a[href], [role="button"], [role="link"]').filter(visible).forEach((element) => {
+  query<HTMLElement>('button, a[href], [role="button"], [role="link"]').filter(isVisible).forEach((element) => {
     if (!accessibleName(element)) findings.push(finding('accessible-name', 'critical', 'Interactive controls need an accessible name.', element))
   })
 
-  query<HTMLElement>('input:not([type="hidden"]), select, textarea').filter(visible).forEach((element) => {
+  query<HTMLElement>('input:not([type="hidden"]), select, textarea').filter(isVisible).forEach((element) => {
     if (!accessibleName(element)) findings.push(finding('form-label', 'critical', 'Form controls need an accessible label.', element))
   })
 
@@ -108,7 +77,7 @@ export function auditPage(options: AuditOptions = {}): AuditFinding[] {
   })
 
   let previousLevel = 0
-  query<HTMLHeadingElement>('h1, h2, h3, h4, h5, h6').filter(visible).forEach((heading) => {
+  query<HTMLHeadingElement>('h1, h2, h3, h4, h5, h6').filter(isVisible).forEach((heading) => {
     const level = Number(heading.tagName.slice(1))
     if (previousLevel && level > previousLevel + 1) findings.push(finding('heading-order', 'moderate', `Heading level jumps from h${previousLevel} to h${level}.`, heading))
     previousLevel = level
@@ -119,6 +88,52 @@ export function auditPage(options: AuditOptions = {}): AuditFinding[] {
       if (!root.querySelector(step.selector)) findings.push(finding('guide-target', 'serious', `Guide step "${step.id}" does not match ${step.selector}.`))
     } catch {
       findings.push(finding('guide-selector', 'serious', `Guide step "${step.id}" has an invalid selector: ${step.selector}.`))
+    }
+  })
+
+  return findings
+}
+
+const AMBIGUOUS_ACTION = /^(click here|continue|go|learn more|more|next|ok|submit|yes|no)$/i
+const CONSEQUENTIAL_ACTIONS = new Set(['purchase', 'delete'])
+const SENSITIVE_CONTEXT_KEY = /(address|card|credential|email|password|phone|secret|ssn|token)/i
+
+function normalized(value: string): string {
+  return value.replace(/\s+/g, ' ').trim().toLocaleLowerCase()
+}
+
+/** Reviews whether authored guidance agrees with the visible, operable interface. */
+export function auditGuidance(options: AuditOptions = {}): AuditFinding[] {
+  const root = options.root ?? document
+  const findings: AuditFinding[] = []
+  const items = collectGuideItems(root, options.steps ?? [], options.autoDiscover !== false)
+
+  items.filter((item) => item.kind === 'action').forEach((item) => {
+    const element = item.element
+    const name = accessibleName(element)
+    const visible = visibleText(element)
+    if (element.matches('button, a[href], summary, [role="button"], [role="link"]') && visible && name && !normalized(name).includes(normalized(visible))) {
+      findings.push(finding('guide-label-in-name', 'serious', `Visible text "${visible}" is not contained in the accessible name "${name}".`, element))
+    }
+    if (AMBIGUOUS_ACTION.test(item.title.trim())) {
+      findings.push(finding('guide-ambiguous-action', 'moderate', `The action name "${item.title}" does not explain what will happen.`, element))
+    }
+    if (item.title.startsWith('Action ')) {
+      findings.push(finding('guide-action-name', 'critical', 'The guide could not find an accessible name for this action.', element))
+    }
+    if (CONSEQUENTIAL_ACTIONS.has(item.action ?? '')) {
+      if (!item.outcome) findings.push(finding('guide-consequence', 'serious', `The ${item.action} action needs a truthful outcome.`, element))
+      if (!item.completion) findings.push(finding('guide-completion', 'serious', `The ${item.action} action needs a visible or announced completion signal.`, element))
+      if (!item.confirmation || item.confirmation === 'none') findings.push(finding('guide-confirmation', 'serious', `The ${item.action} action needs a review or explicit confirmation boundary.`, element))
+    }
+    if (isDisabled(element) && !item.description && !item.requirements?.length) {
+      findings.push(finding('guide-disabled-reason', 'moderate', 'Explain why this action is unavailable or what is required to enable it.', element))
+    }
+    Object.keys(item.context ?? {}).filter((key) => SENSITIVE_CONTEXT_KEY.test(key)).forEach((key) => {
+      findings.push(finding('guide-sensitive-context', 'serious', `The public guide context contains a potentially sensitive "${key}" field.`, element))
+    })
+    if (element.hasAttribute('data-a11y-guide-context') && !item.context) {
+      findings.push(finding('guide-context-json', 'moderate', 'The guide context must be a JSON object containing only string, number, or boolean values.', element))
     }
   })
 

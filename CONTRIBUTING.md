@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping make `@polyform/a11y-guide` more useful and accessible.
+Thanks for helping make `@polyform-ai/a11y-guide` more useful and accessible.
 
 ## Before opening a change
 

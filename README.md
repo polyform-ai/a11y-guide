@@ -1,4 +1,4 @@
-# `@polyform/a11y-guide`
+# `@polyform-ai/a11y-guide`
 
 [![CI](https://github.com/polyform-ai/a11y-guide/actions/workflows/ci.yml/badge.svg)](https://github.com/polyform-ai/a11y-guide/actions/workflows/ci.yml)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -35,17 +35,17 @@ This project is maintained by [Polyform](https://github.com/polyform-ai) and rel
 ## Install
 
 ```sh
-npm install @polyform/a11y-guide
+npm install @polyform-ai/a11y-guide
 ```
 
-The package is currently a local `0.1.0` pilot and has not been published to npm yet.
+The initial public API is versioned as `0.1.0`. Expect additive refinements as more human and browser-agent evaluations are contributed.
 
 ## Quick start
 
 Run this only in the browser, after the document body exists:
 
 ```ts
-import { createGuide } from '@polyform/a11y-guide'
+import { createGuide } from '@polyform-ai/a11y-guide'
 
 const guide = createGuide({
   label: 'Page guide',
@@ -82,8 +82,12 @@ For an action, you can also describe the result, requirements, and a few structu
   type="submit"
   data-a11y-guide="Add 2 coffee bags to cart"
   data-a11y-guide-description="$18 each; current selection is whole bean."
-  data-a11y-guide-outcome="Adds 2 bags to the cart. Checkout does not begin."
+  data-a11y-guide-action="add-to-cart"
+  data-a11y-guide-outcome="Adds 2 bags to the cart."
+  data-a11y-guide-does-not="Checkout or payment does not begin."
   data-a11y-guide-requires="Choose a grind | Choose a quantity"
+  data-a11y-guide-completion="The cart status announces the new quantity."
+  data-a11y-guide-confirmation="none"
   data-a11y-guide-context='{"action":"add-to-cart","sku":"coffee-1kg","unitPrice":18,"currency":"USD","quantity":2}'
 >
   Add 2 to cart — $36
@@ -91,6 +95,8 @@ For an action, you can also describe the result, requirements, and a few structu
 ```
 
 Keep this information short, current, and non-sensitive. It supplements—never replaces—the visible label, native element, form label, accessible name, and actual disabled state.
+
+Well-known `data-a11y-guide-action` values are `navigate`, `select`, `toggle`, `submit`, `add-to-cart`, `purchase`, `delete`, `download`, `upload`, and `custom`. Confirmation is `none`, `review`, or `explicit`. Purchase and deletion guidance should always provide an outcome, completion signal, and review or explicit-confirmation boundary.
 
 For centralized or route-specific copy, pass authored steps:
 
@@ -128,7 +134,7 @@ Computer-use systems commonly work from pixels, semantic DOM or accessibility-tr
 - prerequisites and confirmation boundaries; and
 - feedback after the state changes.
 
-`@polyform/a11y-guide` keeps those signals useful to people first, then publishes authored guidance as a machine-readable supplement. By default, `createGuide()` adds this snapshot to the page:
+`@polyform-ai/a11y-guide` keeps those signals useful to people first, then publishes authored guidance as a machine-readable supplement. By default, `createGuide()` adds this snapshot to the page:
 
 ```html
 <script type="application/json" data-a11y-guide-manifest="v1">
@@ -138,7 +144,7 @@ Computer-use systems commonly work from pixels, semantic DOM or accessibility-tr
 
 Code can also call `guide.getManifest()`. Set `exposeManifest: false` if a site should keep the snapshot programmatic only. Never place secrets, hidden business rules, personal data, or instructions that conflict with the visible interface in guidance metadata.
 
-The full field contract and consumer safety rules are in [Page guide manifest v1](docs/manifest-v1.md).
+The full field contract and consumer safety rules are in [Page guide manifest v1](docs/manifest-v1.md). For a repeatable browser-agent review, see [Testing a site with computer-use agents](docs/testing-with-agents.md).
 
 ## E-commerce pattern
 
@@ -162,8 +168,12 @@ Make the selection and consequence legible before the purchase action:
     type="submit"
     aria-describedby="unit-price add-outcome"
     data-a11y-guide="Add selected coffee to cart"
-    data-a11y-guide-outcome="Updates the cart only; payment is a separate confirmed step."
+    data-a11y-guide-action="add-to-cart"
+    data-a11y-guide-outcome="Updates the cart with the selected coffee."
+    data-a11y-guide-does-not="Payment does not begin."
     data-a11y-guide-requires="Choose a grind | Choose a quantity"
+    data-a11y-guide-completion="The cart status announces the new quantity and subtotal."
+    data-a11y-guide-confirmation="none"
     data-a11y-guide-context='{"action":"add-to-cart","unitPrice":18,"currency":"USD"}'
   >
     Add 2 to cart — $36
@@ -180,7 +190,7 @@ Update the button's visible quantity and subtotal when the form changes. After a
 The optional inspector outlines actions in purple and sections in green, including authored outcomes and disabled state:
 
 ```ts
-import { showGuideOverlay } from '@polyform/a11y-guide/inspector'
+import { showGuideOverlay } from '@polyform-ai/a11y-guide/inspector'
 
 const inspector = showGuideOverlay()
 
@@ -193,7 +203,7 @@ This is a development aid, not an exact accessibility-tree viewer and not a subs
 ## Audit a page
 
 ```ts
-import { auditPage } from '@polyform/a11y-guide/audit'
+import { auditPage } from '@polyform-ai/a11y-guide/audit'
 
 const findings = auditPage({
   steps: [
@@ -206,7 +216,7 @@ for (const item of findings) {
 }
 ```
 
-The built-in audit currently checks:
+The built-in semantic audit currently checks:
 
 - document title and language;
 - exactly one main landmark;
@@ -218,6 +228,8 @@ The built-in audit currently checks:
 - custom clickable `<div>`/`<span>` controls that should be native controls;
 - skipped heading levels; and
 - missing or invalid guide targets.
+
+`auditGuidance()` separately recommends improvements for visible-label mismatches, ambiguous action names, purchase and deletion boundaries, missing completion signals, unexplained disabled controls, malformed context, and potentially sensitive public context keys.
 
 For production testing, pair this signal with a comprehensive engine such as axe-core:
 
@@ -234,7 +246,7 @@ expect(results.violations).toEqual([])
 
 ```astro
 <script>
-  import { createGuide } from '@polyform/a11y-guide'
+  import { createGuide } from '@polyform-ai/a11y-guide'
 
   createGuide({ title: 'Explore this page' })
 </script>
@@ -246,7 +258,7 @@ Mount the component once in the shared page shell. In applications that replace 
 
 ```tsx
 import { useEffect } from 'react'
-import { createGuide } from '@polyform/a11y-guide'
+import { createGuide } from '@polyform-ai/a11y-guide'
 
 export function AccessibilityGuide() {
   useEffect(() => {
@@ -263,7 +275,7 @@ export function AccessibilityGuide() {
 Copy this into the repository together with its existing product and design guidance:
 
 ```text
-Add @polyform/a11y-guide to this website without weakening native accessibility.
+Add @polyform-ai/a11y-guide to this website without weakening native accessibility.
 
 First inspect the rendered page, its interaction code, and its existing accessibility tests. Use native HTML before ARIA: links navigate, buttons perform actions, landmarks structure the page, headings form a logical outline, and every form control has a real label. Replace clickable divs/spans with native controls when possible. Do not add role, aria-label, or tabindex to every div. Do not hide meaningful content from assistive technology.
 
@@ -297,6 +309,7 @@ Important options:
 | `autoDiscover` | `true` | Include native page structure and actions. |
 | `observe` | `true` | Refresh after client-rendered DOM and visibility changes. |
 | `scroll` | `true` | Scroll a chosen target into view. |
+| `closeOnNavigate` | `true` | Close the panel before focusing the selected page target. |
 | `exposeManifest` | `true` | Publish the current guide as JSON in the DOM for browser agents and tools. |
 | `label` | `Page guide` | Trigger label. |
 | `title` | `Guide to this page` | Dialog heading. |
@@ -310,9 +323,13 @@ Returns the auto-discovered draft steps. This is useful when building an authori
 
 Returns structured findings with `rule`, `impact`, `message`, `selector`, and the matching `element` when applicable.
 
+### `auditGuidance(options?)`
+
+Reviews visible-label alignment, ambiguous actions, purchase and deletion boundaries, success signals, disabled reasons, context JSON, and potentially sensitive public context keys. These are high-signal recommendations, not conformance claims.
+
 ### `showGuideOverlay(options?)`
 
-Imported from `@polyform/a11y-guide/inspector`. Draws a disposable development overlay of discovered agent targets. The returned controller has `refresh()` and `destroy()` methods.
+Imported from `@polyform-ai/a11y-guide/inspector`. Draws a disposable development overlay of discovered agent targets. The returned controller has `refresh()` and `destroy()` methods.
 
 ## A practical audit
 
@@ -336,9 +353,10 @@ Strong contributions include the page context, the exact ambiguity, before/after
 ```sh
 npm install
 npm run check
+npm run example
 ```
 
-`npm run check` type-checks the source, runs the DOM behavior tests, builds the distributable ESM and declarations, and verifies the npm tarball contents.
+`npm run check` type-checks the source, runs the DOM behavior tests, builds the distributable ESM and declarations, and verifies the npm tarball contents. `npm run example` starts the runnable commerce example at `http://127.0.0.1:4173/`.
 
 ## Publishing checklist
 

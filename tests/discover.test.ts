@@ -51,7 +51,7 @@ describe('createGuide', () => {
     expect(controller.getManifest()).toMatchObject({
       version: 1,
       items: expect.arrayContaining([
-        expect.objectContaining({ title: 'Save', kind: 'action', element: { tagName: 'button', disabled: false } }),
+        expect.objectContaining({ title: 'Save', kind: 'action', element: expect.objectContaining({ tagName: 'button', disabled: false, accessibleName: 'Save' }) }),
       ]),
     })
     const publishedManifest = host?.querySelector<HTMLScriptElement>('[data-a11y-guide-manifest]')
@@ -73,6 +73,34 @@ describe('createGuide', () => {
     const navItems = controller.getItems().filter((item) => item.element.matches('nav'))
     expect(navItems).toHaveLength(1)
     expect(navItems[0]?.title).toBe('Choose a destination')
+    controller.destroy()
+  })
+
+  it('uses native form labels, excludes inert controls, and preserves page order', () => {
+    document.body.innerHTML = `
+      <main>
+        <h1>Checkout</h1>
+        <label for="quantity">Quantity</label><input id="quantity" type="number" value="2">
+        <div inert><button>Unavailable action</button></div>
+        <button id="purchase">Place order</button>
+      </main>
+    `
+    const controller = createGuide({
+      observe: false,
+      steps: [{ id: 'purchase', selector: '#purchase', title: 'Place order for $36', action: 'purchase', confirmation: 'explicit' }],
+    })
+    const actions = controller.getItems().filter((item) => item.kind === 'action')
+    expect(actions.map((item) => item.title)).toEqual(['Quantity', 'Place order for $36'])
+    expect(actions[1]?.action).toBe('purchase')
+    controller.destroy()
+  })
+
+  it('refreshes the manifest after visible action text changes', async () => {
+    document.body.innerHTML = '<main><h1>Cart</h1><button id="add">Add 1 to cart</button></main>'
+    const controller = createGuide({ scroll: false })
+    document.querySelector('#add')!.textContent = 'Add 2 to cart'
+    await new Promise((resolve) => setTimeout(resolve, 75))
+    expect(controller.getItems().find((item) => item.id === 'auto-3')?.title).toBe('Add 2 to cart')
     controller.destroy()
   })
 })

@@ -1,4 +1,4 @@
-import { discoverGuideSteps, resolveGuideSteps } from './discover.js'
+import { collectGuideItems } from './discover.js'
 import type { GuideItemKind, GuideStep } from './types.js'
 
 export interface InspectorOptions {
@@ -28,9 +28,11 @@ function documentFor(root: Document | HTMLElement): Document {
   return doc
 }
 
-function labelFor(index: number, kind: GuideItemKind, title: string, outcome?: string, disabled?: boolean): string {
+function labelFor(index: number, kind: GuideItemKind, title: string, action?: string, outcome?: string, confirmation?: string, disabled?: boolean): string {
   const parts = [`${kind === 'action' ? 'A' : 'S'}${index + 1}`, title]
+  if (action) parts.push(action)
   if (disabled) parts.push('disabled')
+  if (confirmation) parts.push(`confirmation: ${confirmation}`)
   if (outcome) parts.push(`outcome: ${outcome}`)
   return parts.join(' · ')
 }
@@ -57,10 +59,7 @@ export function showGuideOverlay(options: InspectorOptions = {}): InspectorContr
   let destroyed = false
   const refresh = (): void => {
     if (destroyed) return
-    const authored = resolveGuideSteps(root, options.steps ?? [])
-    const authoredElements = new Set(authored.map((item) => item.element))
-    const discovered = resolveGuideSteps(root, discoverGuideSteps(root)).filter((item) => !authoredElements.has(item.element))
-    const items = [...authored, ...discovered].filter((item) => options.includeSections !== false || item.kind === 'action')
+    const items = collectGuideItems(root, options.steps ?? []).filter((item) => options.includeSections !== false || item.kind === 'action')
     layer.replaceChildren()
     items.forEach((item, index) => {
       const rect = item.element.getBoundingClientRect()
@@ -80,7 +79,9 @@ export function showGuideOverlay(options: InspectorOptions = {}): InspectorContr
         index,
         item.kind,
         item.title,
+        item.action,
         item.outcome,
+        item.confirmation,
         item.element.matches(':disabled, [aria-disabled="true"]'),
       )
       box.append(label)

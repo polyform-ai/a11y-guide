@@ -1,6 +1,8 @@
 export type GuideItemKind = 'section' | 'action'
 export type GuideContextValue = string | number | boolean
 export type GuideContext = Record<string, GuideContextValue>
+export type GuideConfirmation = 'none' | 'review' | 'explicit'
+export type GuideActionType = 'navigate' | 'select' | 'toggle' | 'submit' | 'add-to-cart' | 'purchase' | 'delete' | 'download' | 'upload' | 'custom'
 
 export interface GuideStep {
   /** A stable identifier used for rendering and test output. */
@@ -13,6 +15,14 @@ export interface GuideStep {
   description?: string
   /** What will change after the action succeeds. */
   outcome?: string
+  /** A machine-readable description of the operation. */
+  action?: GuideActionType
+  /** A useful boundary that states what activating the control will not do. */
+  doesNot?: string
+  /** Whether the interface provides a review or requires explicit confirmation. */
+  confirmation?: GuideConfirmation
+  /** The visible or announced state that proves the action succeeded. */
+  completion?: string
   /** Conditions that must already be true before the action can succeed. */
   requirements?: string[]
   /** Small, non-sensitive facts useful to people and browser agents. */
@@ -38,6 +48,8 @@ export interface GuideOptions {
   introduction?: string
   /** Set false when the host application manages scrolling itself. */
   scroll?: boolean
+  /** Close the guide after moving to a target. Defaults to true. */
+  closeOnNavigate?: boolean
   /** Publish a JSON snapshot in the DOM for browser agents. Defaults to true. */
   exposeManifest?: boolean
 }
@@ -57,7 +69,10 @@ export interface GuideManifestItem extends Omit<GuideStep, 'kind'> {
   element: {
     tagName: string
     role?: string
+    accessibleName: string
+    visibleText?: string
     disabled: boolean
+    state?: GuideContext
   }
 }
 
