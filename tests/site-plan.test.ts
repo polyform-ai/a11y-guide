@@ -61,6 +61,7 @@ describe('selectRepresentativeSiteRoutes', () => {
       startUrl: 'https://example.com/',
       links: [
         { href: '/%6Cogout', context: 'navigation' },
+        { href: '/%256Cogout', context: 'navigation' },
         { href: '/brochure%2Epdf', context: 'main' },
         { href: '/reports%2Fquarterly', context: 'navigation' },
         { href: '/bad%E0%A4%A', context: 'main' },
@@ -68,7 +69,7 @@ describe('selectRepresentativeSiteRoutes', () => {
     })
 
     expect(plan.routes.map((route) => new URL(route.url).pathname)).toEqual(['/', '/reports/quarterly'])
-    expect(plan.excluded.utility).toBe(2)
+    expect(plan.excluded.utility).toBe(3)
     expect(plan.excluded.asset).toBe(1)
   })
 

@@ -53,11 +53,24 @@ function normalizedPath(pathname: string): string {
 }
 
 function decodedPath(pathname: string): string | undefined {
-  try {
-    return normalizedPath(decodeURIComponent(pathname))
-  } catch {
-    return undefined
+  let decoded = pathname
+  for (let pass = 0; pass < 3; pass += 1) {
+    let next: string
+    try {
+      next = decodeURIComponent(decoded)
+    } catch {
+      return undefined
+    }
+    if (next === decoded) break
+    decoded = next
   }
+  return normalizedPath(decoded.replace(/\\/g, '/'))
+}
+
+function absoluteRouteUrl(start: URL, pathname: string): string {
+  const url = new URL(start.origin)
+  url.pathname = pathname
+  return url.href
 }
 
 function pathSegments(pathname: string): string[] {
@@ -100,7 +113,7 @@ function finiteLimit(value: number | undefined, fallback: number, minimum: numbe
  */
 export function selectRepresentativeSiteRoutes(options: RepresentativeSitePlanOptions): RepresentativeSitePlan {
   const start = new URL(options.startUrl)
-  const startPath = normalizedPath(start.pathname)
+  const startPath = decodedPath(start.pathname) ?? normalizedPath(start.pathname)
   const maxPages = finiteLimit(options.maxPages, 12, 1)
   const maxDetailPages = finiteLimit(options.maxDetailPages, 2, 0)
   const excluded = { external: 0, asset: 0, utility: 0, duplicate: 0, detailLimit: 0, pageLimit: 0 }
@@ -155,7 +168,7 @@ export function selectRepresentativeSiteRoutes(options: RepresentativeSitePlanOp
     const preferred = preferredRank !== undefined
     const context = link.context ?? 'unknown'
     candidates.push({
-      url: `${start.protocol}//${start.host}${pathname}`,
+      url: absoluteRouteUrl(start, pathname),
       pathname,
       kind: looksLikeDetail(pathname, context) ? 'detail' : 'section',
       label: link.text?.replace(/\s+/g, ' ').trim() || undefined,
@@ -180,7 +193,7 @@ export function selectRepresentativeSiteRoutes(options: RepresentativeSitePlanOp
   })
 
   const selected: RepresentativeSiteRoute[] = [{
-    url: `${start.protocol}//${start.host}${startPath}`,
+    url: absoluteRouteUrl(start, startPath),
     kind: 'home',
     label: 'Home',
   }]
