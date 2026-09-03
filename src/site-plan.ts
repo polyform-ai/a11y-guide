@@ -38,7 +38,7 @@ export interface RepresentativeSitePlan {
 }
 
 const ASSET_PATH = /\.(?:avif|css|csv|docx?|gif|ico|jpe?g|js|json|mp3|mp4|pdf|png|pptx?|rss|svg|txt|webm|webp|xlsx?|xml|zip)$/i
-const UTILITY_PATH = /(?:^|\/)(?:account|feed|login|logout|search|signin|signup|wp-admin|wp-json)(?:\/|$)/i
+const UTILITY_PATH = /(?:^|\/)(?:account|download|downloads|export|exports|feed|login|logout|search|signin|signup|wp-admin|wp-json)(?:\/|$)/i
 const PAGINATION_PATH = /(?:^|\/)page\/\d+(?:\/|$)/i
 const DATE_PATH = /(?:^|\/)20\d{2}\/(?:0?[1-9]|1[0-2])(?:\/|$)/
 const DETAIL_ROOT = new Set(['article', 'articles', 'post', 'posts', 'story', 'stories'])
@@ -54,17 +54,19 @@ function normalizedPath(pathname: string): string {
 
 function decodedPath(pathname: string): string | undefined {
   let decoded = pathname
-  for (let pass = 0; pass < 3; pass += 1) {
+  for (let pass = 0; pass < 16; pass += 1) {
     let next: string
     try {
       next = decodeURIComponent(decoded)
     } catch {
       return undefined
     }
-    if (next === decoded) break
+    if (next === decoded) return normalizedPath(decoded.replace(/\\/g, '/'))
     decoded = next
   }
-  return normalizedPath(decoded.replace(/\\/g, '/'))
+  // Reject unusually deep encoding instead of auditing a route whose final
+  // meaning remains hidden beyond the safety boundary.
+  return undefined
 }
 
 function absoluteRouteUrl(start: URL, pathname: string): string {

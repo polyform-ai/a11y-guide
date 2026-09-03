@@ -62,6 +62,7 @@ describe('selectRepresentativeSiteRoutes', () => {
       links: [
         { href: '/%6Cogout', context: 'navigation' },
         { href: '/%256Cogout', context: 'navigation' },
+        { href: '/%2525256Cogout', context: 'navigation' },
         { href: '/brochure%2Epdf', context: 'main' },
         { href: '/reports%2Fquarterly', context: 'navigation' },
         { href: '/bad%E0%A4%A', context: 'main' },
@@ -69,8 +70,22 @@ describe('selectRepresentativeSiteRoutes', () => {
     })
 
     expect(plan.routes.map((route) => new URL(route.url).pathname)).toEqual(['/', '/reports/quarterly'])
-    expect(plan.excluded.utility).toBe(3)
+    expect(plan.excluded.utility).toBe(4)
     expect(plan.excluded.asset).toBe(1)
+  })
+
+  it('excludes extensionless download and export endpoints', () => {
+    const plan = selectRepresentativeSiteRoutes({
+      startUrl: 'https://example.com/',
+      links: [
+        { href: '/download/report?id=123', context: 'navigation' },
+        { href: '/export', context: 'main' },
+        { href: '/reports', context: 'navigation' },
+      ],
+    })
+
+    expect(plan.routes.map((route) => new URL(route.url).pathname)).toEqual(['/', '/reports'])
+    expect(plan.excluded.utility).toBe(2)
   })
 
   it('keeps explicitly preferred section paths ahead of shallower footer routes', () => {
