@@ -56,6 +56,22 @@ describe('selectRepresentativeSiteRoutes', () => {
     expect(plan.excluded.asset).toBe(1)
   })
 
+  it('decodes paths before excluding utility and asset routes', () => {
+    const plan = selectRepresentativeSiteRoutes({
+      startUrl: 'https://example.com/',
+      links: [
+        { href: '/%6Cogout', context: 'navigation' },
+        { href: '/brochure%2Epdf', context: 'main' },
+        { href: '/reports%2Fquarterly', context: 'navigation' },
+        { href: '/bad%E0%A4%A', context: 'main' },
+      ],
+    })
+
+    expect(plan.routes.map((route) => new URL(route.url).pathname)).toEqual(['/', '/reports/quarterly'])
+    expect(plan.excluded.utility).toBe(2)
+    expect(plan.excluded.asset).toBe(1)
+  })
+
   it('keeps explicitly preferred section paths ahead of shallower footer routes', () => {
     const plan = selectRepresentativeSiteRoutes({
       startUrl: 'https://www.adweek.com/',

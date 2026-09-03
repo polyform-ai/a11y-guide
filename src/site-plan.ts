@@ -52,6 +52,14 @@ function normalizedPath(pathname: string): string {
   return clean || '/'
 }
 
+function decodedPath(pathname: string): string | undefined {
+  try {
+    return normalizedPath(decodeURIComponent(pathname))
+  } catch {
+    return undefined
+  }
+}
+
 function pathSegments(pathname: string): string[] {
   return pathname.split('/').filter(Boolean)
 }
@@ -104,7 +112,8 @@ export function selectRepresentativeSiteRoutes(options: RepresentativeSitePlanOp
     try {
       const url = new URL(href, start)
       if (['http:', 'https:'].includes(url.protocol) && hostKey(url.hostname) === hostKey(start.hostname)) {
-        const pathname = normalizedPath(url.pathname)
+        const pathname = decodedPath(url.pathname)
+        if (!pathname) return
         if (!preferredRanks.has(pathname)) preferredRanks.set(pathname, index)
       }
     } catch {
@@ -124,7 +133,11 @@ export function selectRepresentativeSiteRoutes(options: RepresentativeSitePlanOp
       excluded.external += 1
       return
     }
-    const pathname = normalizedPath(url.pathname)
+    const pathname = decodedPath(url.pathname)
+    if (!pathname) {
+      excluded.utility += 1
+      return
+    }
     if (ASSET_PATH.test(pathname)) {
       excluded.asset += 1
       return

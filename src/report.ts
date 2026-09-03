@@ -29,6 +29,7 @@ function tone(score: number): string {
 }
 
 type ReportFinding = AgentReadinessEvaluation['findings'][number]
+const IMPACT_RANK = { critical: 0, serious: 1, moderate: 2 } as const
 
 interface FindingGroup {
   rule: string
@@ -67,7 +68,11 @@ function groupPageFindings(findings: ReportFinding[]): FindingGroup[] {
       count: 1,
     })
   })
-  return [...groups.values()]
+  return [...groups.values()].sort((left, right) => (
+    IMPACT_RANK[left.impact] - IMPACT_RANK[right.impact]
+    || right.count - left.count
+    || left.rule.localeCompare(right.rule)
+  ))
 }
 
 function groupSiteFindings(pages: AgentReadinessEvaluation[]): SiteFindingGroup[] {
@@ -97,7 +102,11 @@ function groupSiteFindings(pages: AgentReadinessEvaluation[]): SiteFindingGroup[
       })
     })
   })
-  return [...groups.values()]
+  return [...groups.values()].sort((left, right) => (
+    IMPACT_RANK[left.impact] - IMPACT_RANK[right.impact]
+    || right.count - left.count
+    || left.rule.localeCompare(right.rule)
+  ))
 }
 
 function remediationPrompt(options: AgentReadyReportOptions, overall: number): string {
@@ -116,9 +125,8 @@ function remediationPrompt(options: AgentReadyReportOptions, overall: number): s
       }
     })
   })
-  const impactRank = { critical: 0, serious: 1, moderate: 2 }
   const issues = [...ruleGroups.values()].sort((left, right) => {
-    return impactRank[left.finding.impact] - impactRank[right.finding.impact] || right.count - left.count
+    return IMPACT_RANK[left.finding.impact] - IMPACT_RANK[right.finding.impact] || right.count - left.count
   })
   const pageLines = options.pages.map((page) => `- ${page.page.url ?? (page.page.title || 'Untitled page')}: ${page.score}/100`)
   const issueLines = issues.map(({ finding, count, pages }) => {

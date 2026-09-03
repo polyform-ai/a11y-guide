@@ -122,4 +122,17 @@ describe('renderAgentReadyReport', () => {
     expect(html).toContain('Second page')
     expect(html).toContain('https://example.com/second')
   })
+
+  it('orders site-wide finding groups by severity and occurrence count', () => {
+    document.title = 'Moderate page'
+    document.body.innerHTML = '<main><h1>Actions</h1><div role="button" tabindex="0">One</div></main>'
+    const moderatePage = evaluateAgentReadiness({ readOnly: true })
+    document.title = 'Critical page'
+    document.body.innerHTML = '<main><h1>Actions</h1><button></button></main>'
+    const criticalPage = evaluateAgentReadiness({ readOnly: true })
+    const html = renderAgentReadyReport({ pages: [moderatePage, criticalPage] })
+    const siteFindings = html.split('<section class="site-findings">')[1] ?? ''
+
+    expect(siteFindings.indexOf('action-name')).toBeLessThan(siteFindings.indexOf('custom-control-native-html'))
+  })
 })
