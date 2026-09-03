@@ -12,7 +12,7 @@ The authenticated application shell is owned through:
 - `client/apps/web/app/components/AppLayout.tsx`
 - `client/apps/web/app/root.tsx`
 
-Version `0.2.2` of the package has been compatibility-tested against this stack.
+Version `0.3.0` of the package has been compatibility-tested against this stack.
 
 ## Safety and repository handling
 
@@ -27,7 +27,7 @@ Version `0.2.2` of the package has been compatibility-tested against this stack.
 From `client/`, run:
 
 ```bash
-pnpm --filter @client/web add @polyform-ai/a11y-guide@^0.2.2
+pnpm --filter @client/web add @polyform-ai/a11y-guide@^0.3.0
 ```
 
 Keep the dependency scoped to `@client/web`.
