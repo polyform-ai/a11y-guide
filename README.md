@@ -177,12 +177,15 @@ declare global {
   }
 }
 
+const enableAgentReadinessDebugging =
+  import.meta.env.DEV || import.meta.env.VITE_A11Y_GUIDE === 'true'
+
 const guide = createGuide({
   title: 'Explore this page',
-  exposeManifest: import.meta.env.DEV,
+  exposeManifest: enableAgentReadinessDebugging,
 })
 
-if (import.meta.env.DEV) window.__a11yGuide = guide
+if (enableAgentReadinessDebugging) window.__a11yGuide = guide
 
 // In your framework's teardown:
 function destroyGuide() {
@@ -191,7 +194,7 @@ function destroyGuide() {
 }
 ```
 
-Use your framework's actual development/test flag rather than copying `import.meta.env.DEV` into a stack that does not provide it. React users should create and clean up the controller inside `useEffect`; SSR applications must never call `createGuide()` during server rendering.
+For a Vite preview build, set `VITE_A11Y_GUIDE=true` while creating the artifact that Playwright will serve—for example, from `.env.e2e` with `vite build --mode e2e`. Setting it only when starting `vite preview` is too late because Vite replaces `import.meta.env` during the build. Leave the flag unset for production artifacts. Use an equivalent explicit E2E flag in other stacks. React users should create and clean up the controller inside `useEffect`; SSR applications must never call `createGuide()` during server rendering.
 
 ### Collect evidence in Playwright
 
