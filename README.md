@@ -198,7 +198,7 @@ For a Vite preview build, set `VITE_A11Y_GUIDE=true` while creating the artifact
 
 ### Collect evidence in Playwright
 
-The page hook lets Playwright collect the package's serializable report from the rendered browser state. Pair that approximation with Playwright's browser-derived role locators and ARIA snapshots:
+The page hook lets Playwright collect the package's serializable report from the rendered browser state. Pair that approximation with Playwright's browser-derived role locators and ARIA snapshots. Use synthetic or sanitized fixtures before collecting it: the result includes a manifest that can copy visible text and accessible names from the page, including customer data. Never attach a raw result from production or a real customer account. If sensitive data is unavoidable, redact the result according to your organization's data policy before saving it or sharing it with any coding agent.
 
 ```ts
 import { expect, test } from '@playwright/test'
@@ -216,11 +216,19 @@ test('cart is legible to people, Playwright, and browser agents', async ({ page 
     - button "Add 2 to cart — $36"
   `)
 
+  await expect
+    .poll(() => page.evaluate(() => Boolean(window.__a11yGuide)), {
+      message: 'a11y-guide test hook should be available after hydration',
+      timeout: 5_000,
+    })
+    .toBe(true)
+
   const readiness = await page.evaluate(() => {
     if (!window.__a11yGuide) throw new Error('a11y-guide test hook is missing')
     return window.__a11yGuide.getAgentReadiness()
   })
 
+  // This attachment is safe only because this test uses synthetic fixture data.
   await test.info().attach('agent-readiness.json', {
     body: JSON.stringify(readiness, null, 2),
     contentType: 'application/json',
@@ -243,6 +251,12 @@ Copy this into Codex, Claude Code, or another coding agent that can run your rep
 Run the existing Playwright test for [WORKFLOW]. Inspect the rendered page, the
 attached agent-readiness.json result, and the relevant ARIA snapshot before
 editing code.
+
+Use only synthetic or sanitized fixtures. Treat the readiness JSON as a test
+artifact that may contain visible text and accessible names from the page. Do
+not collect it from production or a real customer account, and do not share it
+outside the repositories, agents, and retention controls authorized by the
+organization's data policy.
 
 Fix shared component or template causes first. Prefer native HTML and accurate
 visible labels. Make every important action uniquely discoverable by role and
