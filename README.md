@@ -151,6 +151,131 @@ Code can also call `guide.getManifest()`. Set `exposeManifest: false` if a site 
 
 The full field contract and consumer safety rules are in [Page guide manifest v1](docs/manifest-v1.md). For a repeatable browser-agent review, see [Testing a site with computer-use agents](docs/testing-with-agents.md).
 
+## Use it with Codex, Claude Code, and Playwright
+
+This package is useful in an agent-assisted development loop, especially when Codex, Claude Code, or another coding agent runs an existing Playwright suite. Playwright's recommended `getByRole()`, `getByLabel()`, and `getByText()` locators depend on the same user-facing names and semantics that browser agents commonly use. Improving those signals gives the agent clearer targets and gives the test suite more durable contracts than DOM position or generated CSS classes.
+
+Installing the package does not automatically change how Playwright or a coding agent sees the page. The benefit comes from a repeatable loop:
+
+1. Mount `createGuide()` in a browser-side development or test entrypoint.
+2. Use `getAgentReadiness()` to give the coding agent a structured baseline and concrete findings.
+3. Write Playwright journeys with role, label, and visible-text locators; use test IDs only when there is no meaningful user-facing contract.
+4. Add focused ARIA snapshots for important, stable states so changes to roles, names, and state are reviewable.
+5. Ask the coding agent to fix shared semantic causes in components before patching individual tests.
+6. Rerun the same task and verify the visible or announced result after every state-changing action.
+
+### Expose a test-only readiness hook
+
+Keep the controller available only in development or test builds. Do not expose private application or customer data in guide metadata.
+
+```ts
+import { createGuide, type GuideController } from '@polyform-ai/a11y-guide'
+
+declare global {
+  interface Window {
+    __a11yGuide?: GuideController
+  }
+}
+
+const enableAgentReadinessDebugging =
+  import.meta.env.DEV || import.meta.env.VITE_A11Y_GUIDE === 'true'
+
+const guide = createGuide({
+  title: 'Explore this page',
+  exposeManifest: enableAgentReadinessDebugging,
+})
+
+if (enableAgentReadinessDebugging) window.__a11yGuide = guide
+
+// In your framework's teardown:
+function destroyGuide() {
+  guide.destroy()
+  delete window.__a11yGuide
+}
+```
+
+For a Vite preview build, set `VITE_A11Y_GUIDE=true` while creating the artifact that Playwright will serve—for example, from `.env.e2e` with `vite build --mode e2e`. Setting it only when starting `vite preview` is too late because Vite replaces `import.meta.env` during the build. Leave the flag unset for production artifacts. Use an equivalent explicit E2E flag in other stacks. React users should create and clean up the controller inside `useEffect`; SSR applications must never call `createGuide()` during server rendering.
+
+### Collect evidence in Playwright
+
+The page hook lets Playwright collect the package's serializable report from the rendered browser state. Pair that approximation with Playwright's browser-derived role locators and ARIA snapshots. Use synthetic or sanitized fixtures before collecting it: the result includes a manifest that can copy visible text and accessible names from the page, including customer data. Never attach a raw result from production or a real customer account. If sensitive data is unavoidable, redact the result according to your organization's data policy before saving it or sharing it with any coding agent.
+
+```ts
+import { expect, test } from '@playwright/test'
+
+test('cart is legible to people, Playwright, and browser agents', async ({ page }) => {
+  await page.goto('/products/coffee')
+
+  const addToCart = page.getByRole('button', {
+    name: 'Add 2 to cart — $36',
+  })
+  await expect(addToCart).toBeVisible()
+  await expect(page.getByRole('main')).toMatchAriaSnapshot(`
+    - heading "House coffee" [level=1]
+    - spinbutton "Quantity": "2"
+    - button "Add 2 to cart — $36"
+  `)
+
+  await expect
+    .poll(() => page.evaluate(() => Boolean(window.__a11yGuide)), {
+      message: 'a11y-guide test hook should be available after hydration',
+      timeout: 5_000,
+    })
+    .toBe(true)
+
+  const readiness = await page.evaluate(() => {
+    if (!window.__a11yGuide) throw new Error('a11y-guide test hook is missing')
+    return window.__a11yGuide.getAgentReadiness()
+  })
+
+  // This attachment is safe only because this test uses synthetic fixture data.
+  await test.info().attach('agent-readiness.json', {
+    body: JSON.stringify(readiness, null, 2),
+    contentType: 'application/json',
+  })
+
+  expect(readiness.findings.filter(({ impact }) => impact === 'critical')).toEqual([])
+
+  await addToCart.click()
+  await expect(page.getByRole('status')).toContainText('2 bags added')
+})
+```
+
+Adjust the snapshot to the rendered page instead of copying the example literally. Keep it focused on stable structure and consequential states; a giant whole-page snapshot is hard to review and easy to approve without understanding.
+
+### Give the evidence to a coding agent
+
+Copy this into Codex, Claude Code, or another coding agent that can run your repository's Playwright tests:
+
+```text
+Run the existing Playwright test for [WORKFLOW]. Inspect the rendered page, the
+attached agent-readiness.json result, and the relevant ARIA snapshot before
+editing code.
+
+Use only synthetic or sanitized fixtures. Treat the readiness JSON as a test
+artifact that may contain visible text and accessible names from the page. Do
+not collect it from production or a real customer account, and do not share it
+outside the repositories, agents, and retention controls authorized by the
+organization's data policy.
+
+Fix shared component or template causes first. Prefer native HTML and accurate
+visible labels. Make every important action uniquely discoverable by role and
+accessible name; expose selected, expanded, disabled, validation, loading,
+error, and success states. Add concise a11y-guide guidance only when purpose,
+requirements, outcome, completion evidence, or a consequential boundary is not
+already clear.
+
+Do not make the test pass by adding arbitrary CSS selectors, blanket tabindex,
+speculative ARIA, hidden agent-only instructions, or test IDs where a meaningful
+user-facing locator is possible. Do not weaken assertions or blindly update ARIA
+snapshots. Rerun the same Playwright journey and report the readiness score,
+remaining findings, locator changes, and visible or announced success evidence.
+Treat the package score as a regression signal, not WCAG certification or proof
+that every browser agent will complete the task.
+```
+
+The useful outcome is not merely a higher score. It is a page where a person, a Playwright test, and a browser agent can identify the same action by the same truthful name, understand its current state and consequence, and verify whether it succeeded. See Playwright's [locator guidance](https://playwright.dev/docs/locators) and [ARIA snapshot documentation](https://playwright.dev/docs/aria-snapshots) for the browser-side testing contracts.
+
 ## E-commerce pattern
 
 Make the selection and consequence legible before the purchase action:
