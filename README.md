@@ -56,6 +56,8 @@ const guide = createGuide({
   label: 'Page guide',
   title: 'Explore this page',
   introduction: 'Jump to a section or move directly to any available action.',
+  // Optional: keep long inventories scannable without removing manifest items.
+  maxVisibleItems: 12,
 })
 
 // For SPA teardown:
@@ -335,10 +337,14 @@ This is a development aid, not an exact accessibility-tree viewer and not a subs
 ```ts
 import {
   evaluateAgentReadiness,
+  evaluateAgentReadinessWhenStable,
   renderAgentReadyReport,
 } from '@polyform-ai/a11y-guide'
 
-const page = evaluateAgentReadiness()
+// Use the synchronous form for already-settled documents.
+const immediatePage = evaluateAgentReadiness()
+// For client-rendered routes, wait until mutations have been quiet for 100ms.
+const page = await evaluateAgentReadinessWhenStable()
 console.log(page.score, page.dimensions, page.findings)
 
 const html = renderAgentReadyReport({
@@ -348,7 +354,22 @@ const html = renderAgentReadyReport({
 })
 ```
 
-For an integration that already uses `createGuide()`, call `guide.getAgentReadiness()` so the score uses the same root and authored steps. In a browser crawl, collect one evaluation per route and pass all of them to `renderAgentReadyReport()` to get a large overall score plus the score for every page. Repeated identical findings are shown once with an occurrence count and collapsed selectors, and the top of the report includes a copy-ready prompt for a coding agent to fix shared causes across the site.
+For an integration that already uses `createGuide()`, call `guide.getAgentReadiness()` so the score uses the same root and authored steps. In a browser crawl, collect one evaluation per route and pass all of them to `renderAgentReadyReport()` to get a large overall score plus the score for every page. Repeated identical finding patterns deduct once per page while every occurrence remains available as evidence. The HTML report shows each pattern once with an occurrence count and collapsed selectors, and includes a copy-ready prompt for fixing shared causes across the site.
+
+Evaluations can contain page URLs, visible text, accessible names, and selectors. Use synthetic fixtures when possible. Before sharing a report from a sensitive page, provide a sanitizer; returning `undefined` removes optional values:
+
+```ts
+const html = renderAgentReadyReport({
+  pages: [page],
+  sanitize: (value, { field }) => {
+    if (field === 'page-title') return 'Redacted page'
+    if (field === 'page-url' || field === 'finding-selector') return undefined
+    return value.replaceAll(/[^\s]+@[^\s]+/g, '[email redacted]')
+  },
+})
+```
+
+The sanitizer applies before HTML and remediation-prompt generation. It does not alter the source evaluation or its manifest, so do not separately publish a raw evaluation collected from private data.
 
 Use `selectRepresentativeSiteRoutes()` before auditing a large site. It selects a bounded set of same-site section pages from links rendered on the start page, strips query and fragment variants, ignores pagination and utility routes, and caps article-like detail pages separately. It deliberately does not recursively crawl the selected pages, so a publication archive cannot expand into millions of article visits.
 
@@ -502,6 +523,7 @@ Important options:
 | `scroll` | `true` | Scroll a chosen target into view. |
 | `closeOnNavigate` | `true` | Close the panel before focusing the selected page target. |
 | `exposeManifest` | `true` | Publish the current guide as JSON in the DOM for browser agents and tools. |
+| `maxVisibleItems` | unlimited | Show the first N items in each panel group and place the rest in a native disclosure; all items stay in the controller and manifest. |
 | `label` | `Page guide` | Trigger label. |
 | `title` | `Guide to this page` | Dialog heading. |
 | `introduction` | built in | Short explanation above the inventory. |

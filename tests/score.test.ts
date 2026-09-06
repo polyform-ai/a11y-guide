@@ -1,6 +1,10 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it } from 'vitest'
-import { evaluateAgentReadiness, renderAgentReadyReport } from '../src/index.js'
+import {
+  evaluateAgentReadiness,
+  evaluateAgentReadinessWhenStable,
+  renderAgentReadyReport,
+} from '../src/index.js'
 
 afterEach(() => {
   document.body.replaceChildren()
@@ -75,6 +79,71 @@ describe('evaluateAgentReadiness', () => {
     expect(selector).not.toBe('.purchase-button')
     expect(document.querySelectorAll(selector!)).toHaveLength(1)
   })
+
+  it('does not deduct twice when page and guide audits find the same unnamed control', () => {
+    document.title = 'Search'
+    document.documentElement.lang = 'en'
+    document.body.innerHTML = '<main><h1>Search</h1><input type="search" placeholder="Search tasks"></main>'
+
+    const rules = evaluateAgentReadiness({ readOnly: true }).findings
+      .filter((item) => item.selector?.includes('input'))
+      .map((item) => item.rule)
+
+    expect(rules).toEqual(['form-label'])
+  })
+
+  it('does not infer consequential mutations from task titles or ordinary send actions', () => {
+    document.title = 'Tasks'
+    document.documentElement.lang = 'en'
+    document.body.innerHTML = `
+      <main><h1>Tasks</h1>
+        <button aria-label="Open task Cancel subscription request"><span aria-hidden="true">CS</span></button>
+        <button>Send</button>
+      </main>
+    `
+
+    expect(evaluateAgentReadiness({ readOnly: true }).findings.map((item) => item.rule))
+      .not.toContain('inferred-consequence-guidance')
+  })
+
+  it('scores repeated identical component findings once while retaining every occurrence', () => {
+    document.title = 'Actions'
+    document.documentElement.lang = 'en'
+    document.body.innerHTML = '<main><h1>Actions</h1><button aria-label="Open item 1">I1</button></main>'
+    const one = evaluateAgentReadiness({ readOnly: true })
+    document.body.innerHTML = `<main><h1>Actions</h1>${Array.from({ length: 20 }, (_, index) => `<button aria-label="Open item ${index}">I${index}</button>`).join('')}</main>`
+    const repeated = evaluateAgentReadiness({ readOnly: true })
+
+    expect(repeated.findings.filter((item) => item.rule === 'guide-label-in-name')).toHaveLength(20)
+    expect(repeated.dimensions.find((item) => item.id === 'actions')?.score)
+      .toBe(one.dimensions.find((item) => item.id === 'actions')?.score)
+  })
+
+  it('waits for the rendered DOM to settle before evaluating it', async () => {
+    goodPage()
+    const pending = evaluateAgentReadinessWhenStable({ settleTimeMs: 20, timeoutMs: 250 })
+    window.setTimeout(() => {
+      document.querySelector('main')?.insertAdjacentHTML('beforeend', '<button>View cart</button>')
+    }, 5)
+
+    const result = await pending
+
+    expect(result.manifest.items.some((item) => item.title === 'View cart')).toBe(true)
+  })
+
+  it('supports cancelling a pending stable-DOM evaluation', async () => {
+    goodPage()
+    const controller = new AbortController()
+    const pending = evaluateAgentReadinessWhenStable({
+      settleTimeMs: 100,
+      timeoutMs: 250,
+      signal: controller.signal,
+    })
+
+    controller.abort()
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+  })
 })
 
 describe('renderAgentReadyReport', () => {
@@ -134,5 +203,40 @@ describe('renderAgentReadyReport', () => {
     const siteFindings = html.split('<section class="site-findings">')[1] ?? ''
 
     expect(siteFindings.indexOf('action-name')).toBeLessThan(siteFindings.indexOf('custom-control-native-html'))
+  })
+
+  it('sanitizes private report values before rendering HTML or the remediation prompt', () => {
+    goodPage()
+    const page = evaluateAgentReadiness({ readOnly: true })
+    page.page = {
+      ...page.page,
+      title: 'Private customer dashboard',
+      url: 'https://example.com/customers/private-id?email=private@example.com',
+    }
+    page.findings = [{
+      rule: 'example',
+      impact: 'moderate',
+      dimension: 'actions',
+      message: 'Control "private@example.com" needs review.',
+      recommendation: 'Review the control.',
+      selector: '#private-customer-id',
+      deduction: 6,
+    }]
+
+    const html = renderAgentReadyReport({
+      pages: [page],
+      generatedAt: 'private-generated-at',
+      sanitize: (value, { field }) => {
+        if (field === 'page-title') return 'Redacted page'
+        if (field === 'page-url') return undefined
+        if (field === 'finding-message') return 'Sensitive control needs review.'
+        if (field === 'finding-selector') return undefined
+        if (field === 'generated-at') return undefined
+        return value
+      },
+    })
+
+    expect(html).toContain('Redacted page')
+    expect(html).not.toMatch(/Private customer|private-id|private@example\.com|private-customer-id|private-generated-at/)
   })
 })

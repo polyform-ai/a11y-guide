@@ -52,6 +52,8 @@ export interface GuideOptions {
   closeOnNavigate?: boolean
   /** Publish a JSON snapshot in the DOM for browser agents. Defaults to true. */
   exposeManifest?: boolean
+  /** Keep dense groups compact while retaining every item in the manifest and controller. */
+  maxVisibleItems?: number
 }
 
 export interface GuideController {
