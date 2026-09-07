@@ -14,10 +14,35 @@ function labelText(element: HTMLInputElement | HTMLSelectElement | HTMLTextAreaE
   return normalized(labels.map((label) => label.textContent ?? '').join(' '))
 }
 
+function hiddenFromAccessibilityTree(element: HTMLElement): boolean {
+  if (element.matches('[hidden], [aria-hidden="true"], [inert]')) return true
+  const view = element.ownerDocument.defaultView
+  if (!view) return false
+  const style = view.getComputedStyle(element)
+  return style.display === 'none' || style.visibility === 'hidden'
+}
+
+function exposedSubtreeText(element: HTMLElement, includeImageAlt: boolean): string {
+  const parts: string[] = []
+  element.childNodes.forEach((node) => {
+    if (node.nodeType === 3) {
+      parts.push(node.textContent ?? '')
+      return
+    }
+    if (node.nodeType !== 1) return
+    const child = node as HTMLElement
+    if (hiddenFromAccessibilityTree(child)) return
+    if (isElement(child, 'img')) {
+      if (includeImageAlt) parts.push((child as HTMLImageElement).alt)
+      return
+    }
+    parts.push(exposedSubtreeText(child, includeImageAlt))
+  })
+  return normalized(parts.join(' '))
+}
+
 function subtreeText(element: HTMLElement): string {
-  const ownText = normalized(element.textContent)
-  if (ownText) return ownText
-  return normalized(Array.from(element.querySelectorAll<HTMLImageElement>('img[alt]')).map((image) => image.alt).join(' '))
+  return exposedSubtreeText(element, true)
 }
 
 function isElement(element: HTMLElement, tagName: string): boolean {
@@ -66,7 +91,7 @@ export function visibleText(element: HTMLElement): string {
   }
   // Alternative text can contribute to an accessible name, but it is not a
   // visibly rendered label for label-in-name comparisons.
-  return normalized(element.textContent)
+  return exposedSubtreeText(element, false)
 }
 
 export function isVisible(element: HTMLElement): boolean {

@@ -14,7 +14,7 @@ The score is intentionally explainable. Each page starts at 100 in five dimensio
 | Guidance | 15% | Specific action language, purpose, prerequisites, and author-supplied guidance |
 | Consequence safety | 15% | Outcomes, completion signals, confirmation boundaries, and sensitive-data checks |
 
-Critical, serious, and moderate findings deduct 28, 14, and 6 points respectively. The page score is the weighted average of its dimension scores. A site report is the unweighted average of its page scores so a weak page cannot disappear behind a high-traffic weighting choice.
+Critical, serious, and moderate finding patterns deduct 28, 14, and 6 points respectively. Within a page and dimension, the same rule, impact, and recommendation deduct once even when a shared component produces many messages or occurrences. Every occurrence, message, and selector remains in `findings` as evidence. Distinct rules still deduct separately. The page score is the weighted average of its dimension scores. A site report is the unweighted average of its page scores so a weak page cannot disappear behind a high-traffic weighting choice.
 
 Grades are labels for readability only: excellent is 90–100, good is 75–89, needs work is 50–74, and poor is below 50.
 
@@ -27,14 +27,25 @@ Use the report as a regression signal. Pair it with a comprehensive accessibilit
 ## API
 
 ```ts
-import { evaluateAgentReadiness, renderAgentReadyReport } from '@polyform-ai/a11y-guide'
+import { evaluateAgentReadinessWhenStable, renderAgentReadyReport } from '@polyform-ai/a11y-guide'
 
-const page = evaluateAgentReadiness()
+const page = await evaluateAgentReadinessWhenStable({
+  settleTimeMs: 100,
+  timeoutMs: 5000,
+})
 const html = renderAgentReadyReport({
   title: 'Example site agent readiness',
   siteUrl: 'https://example.com',
   pages: [page],
+  sanitize: (value, { field }) => {
+    if (field === 'page-url' || field === 'finding-selector') return undefined
+    return value
+  },
 })
 ```
 
 `GuideController#getAgentReadiness()` evaluates the page with the same root and authored steps used by the guide. This is convenient for Playwright, browser extensions, and other tools that already integrate `createGuide()`.
+
+`evaluateAgentReadiness()` remains the synchronous API for a document that is already settled. `evaluateAgentReadinessWhenStable()` resets its quiet-period timer after each DOM mutation, supports an `AbortSignal`, and rejects at `timeoutMs`; it does not wait for network-idle or prove that application data is complete.
+
+`renderAgentReadyReport()` can receive a `sanitize(value, context)` callback. It runs on report titles, site and page URLs, page titles, generated timestamps, finding messages, recommendations, and selectors before either the HTML or copyable remediation prompt is assembled. Returning `undefined` removes an optional value or replaces required finding text with a neutral redaction. The source evaluations—including their manifests—remain unchanged and must still be handled as potentially sensitive data.

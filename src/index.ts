@@ -5,8 +5,8 @@ import { buildGuideManifest } from './manifest.js'
 
 export type { GuideActionType, GuideConfirmation, GuideContext, GuideContextValue, GuideController, GuideItemKind, GuideManifest, GuideManifestItem, GuideOptions, GuideStep, ResolvedGuideStep } from './types.js'
 export { auditGuidance, auditPage, type AuditFinding, type AuditImpact, type AuditOptions } from './audit.js'
-export { evaluateAgentReadiness, type AgentReadinessDimension, type AgentReadinessDimensionId, type AgentReadinessEvaluation, type AgentReadinessFinding, type AgentReadinessGrade } from './score.js'
-export { renderAgentReadyReport, type AgentReadyReportOptions } from './report.js'
+export { evaluateAgentReadiness, evaluateAgentReadinessWhenStable, type AgentReadinessDimension, type AgentReadinessDimensionId, type AgentReadinessEvaluation, type AgentReadinessFinding, type AgentReadinessGrade, type AgentReadinessStabilityOptions } from './score.js'
+export { renderAgentReadyReport, type AgentReadyReportField, type AgentReadyReportOptions, type AgentReadyReportSanitizeContext, type AgentReadyReportSanitizer } from './report.js'
 export { collectGuideItems, discoverGuideSteps } from './discover.js'
 export type { DiscoveryOptions } from './discover.js'
 export { selectRepresentativeSiteRoutes, type RepresentativeSitePlan, type RepresentativeSitePlanOptions, type RepresentativeSiteRoute, type SiteLinkCandidate, type SiteLinkContext } from './site-plan.js'
@@ -16,7 +16,7 @@ const STYLE = `
 *{box-sizing:border-box}
 button{font:inherit}
 .toggle{min-height:44px;padding:.75rem 1rem;border:2px solid #172019;border-radius:999px;background:#fff;color:#172019;font-weight:700;box-shadow:0 8px 30px rgba(23,32,25,.18);cursor:pointer}
-.toggle:focus-visible,.close:focus-visible,.item:focus-visible{outline:3px solid #78a987;outline-offset:3px}
+.toggle:focus-visible,.close:focus-visible,.item:focus-visible,.overflow summary:focus-visible{outline:3px solid #78a987;outline-offset:3px}
 .panel{position:absolute;right:0;bottom:calc(100% + .75rem);width:min(25rem,calc(100vw - 2rem));max-height:min(42rem,calc(100vh - 7rem));display:flex;flex-direction:column;overflow:hidden;border:1px solid #cad5cd;border-radius:1rem;background:#fff;box-shadow:0 18px 50px rgba(23,32,25,.22)}
 .panel[hidden]{display:none}
 .head{display:flex;align-items:flex-start;gap:1rem;padding:1rem;border-bottom:1px solid #e5eae6}
@@ -24,6 +24,7 @@ button{font:inherit}
 .close{width:44px;height:44px;flex:0 0 44px;border:0;border-radius:999px;background:#edf3ee;color:#172019;font-size:1.3rem;cursor:pointer}
 .body{overflow:auto;padding:.5rem}.group-title{margin:.75rem .5rem .35rem;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:#536258}
 .list{list-style:none;margin:0;padding:0}.item{width:100%;min-height:44px;display:block;padding:.7rem .75rem;border:0;border-radius:.65rem;background:transparent;color:#172019;text-align:left;cursor:pointer}.item:hover{background:#edf3ee}.item strong{display:block;font-size:.9375rem}.item span{display:block;margin-top:.2rem;color:#536258;font-size:.8125rem;line-height:1.4}
+.overflow{margin:.25rem .5rem .5rem}.overflow summary{min-height:44px;display:flex;align-items:center;padding:.65rem .75rem;border-radius:.65rem;color:#3f5144;font-size:.8125rem;font-weight:700;cursor:pointer}.overflow summary:hover{background:#edf3ee}.overflow .list{margin-top:.25rem}
 .empty{margin:.75rem;color:#536258;font-size:.875rem}
 .status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
@@ -127,11 +128,7 @@ export function createGuide(options: GuideOptions = {}): GuideController {
     return true
   }
 
-  const renderGroup = (label: string, groupItems: ResolvedGuideStep[]): void => {
-    if (!groupItems.length) return
-    const heading = doc.createElement('h3')
-    heading.className = 'group-title'
-    heading.textContent = label
+  const renderItems = (groupItems: ResolvedGuideStep[]): HTMLUListElement => {
     const list = doc.createElement('ul')
     list.className = 'list'
     groupItems.forEach((item) => {
@@ -162,7 +159,27 @@ export function createGuide(options: GuideOptions = {}): GuideController {
       row.append(button)
       list.append(row)
     })
-    body.append(heading, list)
+    return list
+  }
+
+  const renderGroup = (label: string, groupItems: ResolvedGuideStep[]): void => {
+    if (!groupItems.length) return
+    const heading = doc.createElement('h3')
+    heading.className = 'group-title'
+    heading.textContent = label
+    const configuredLimit = options.maxVisibleItems
+    const limit = configuredLimit && configuredLimit > 0 ? Math.max(1, Math.floor(configuredLimit)) : groupItems.length
+    const visibleItems = groupItems.slice(0, limit)
+    const overflowItems = groupItems.slice(limit)
+    body.append(heading, renderItems(visibleItems))
+    if (overflowItems.length) {
+      const overflow = doc.createElement('details')
+      overflow.className = 'overflow'
+      const summary = doc.createElement('summary')
+      summary.textContent = `Show ${overflowItems.length} more ${label.toLowerCase()}`
+      overflow.append(summary, renderItems(overflowItems))
+      body.append(overflow)
+    }
   }
 
   const refresh = (): void => {

@@ -61,6 +61,14 @@ describe('auditPage', () => {
     expect(auditGuidance()).toEqual([])
   })
 
+  it('ignores aria-hidden descendants in label-in-name comparisons', () => {
+    document.body.innerHTML = `
+      <main><h1>Tasks</h1><button aria-label="Open Jane Doe"><span aria-hidden="true">JD</span></button></main>
+    `
+
+    expect(auditGuidance().map((item) => item.rule)).not.toContain('guide-label-in-name')
+  })
+
   it('only flags duplicate link names when they lead to different destinations', () => {
     document.title = 'Links'
     document.documentElement.lang = 'en'

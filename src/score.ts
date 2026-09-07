@@ -1,6 +1,6 @@
 import { auditGuidance, auditPage, type AuditFinding, type AuditImpact, type AuditOptions } from './audit.js'
 import { collectGuideItems } from './discover.js'
-import { accessibleName, isDisabled, visibleText } from './dom.js'
+import { accessibleName, isDisabled } from './dom.js'
 import { buildGuideManifest } from './manifest.js'
 import type { GuideManifest } from './types.js'
 
@@ -49,6 +49,14 @@ export interface AgentReadinessEvaluation {
     notChecked: string[]
   }
   manifest: GuideManifest
+}
+
+export interface AgentReadinessStabilityOptions extends AuditOptions {
+  /** Quiet period after the last DOM mutation before evaluation. Defaults to 100ms. */
+  settleTimeMs?: number
+  /** Maximum time to wait for a quiet DOM. Defaults to 5000ms. */
+  timeoutMs?: number
+  signal?: AbortSignal
 }
 
 const DIMENSIONS: Record<AgentReadinessDimensionId, Omit<AgentReadinessDimension, 'score'>> = {
@@ -116,7 +124,7 @@ const RECOMMENDATIONS: Record<string, string> = {
 }
 
 const IMPACT_DEDUCTION: Record<AuditImpact, number> = { critical: 28, serious: 14, moderate: 6 }
-const CONSEQUENCE_TEXT = /\b(buy|purchase|pay|place order|checkout|delete|remove account|cancel subscription|send|publish|transfer|book)\b/i
+const CONSEQUENCE_TEXT = /^(buy|purchase|pay|place order|checkout|delete|remove account|cancel subscription|publish|transfer)\b/i
 
 function ownerDocument(root: Document | HTMLElement): Document {
   const doc = root.nodeType === 9 ? root as Document : root.ownerDocument
@@ -150,11 +158,17 @@ export function evaluateAgentReadiness(options: AuditOptions = {}): AgentReadine
   const doc = ownerDocument(root)
   const items = collectGuideItems(root, options.steps ?? [], options.autoDiscover !== false, { readOnly: options.readOnly })
   const actions = items.filter((item) => item.kind === 'action')
-  const findings = [...auditPage(options), ...auditGuidance(options)].map(serializedFinding)
+  const rawFindings = [...auditPage(options), ...auditGuidance(options)]
+  const unnamedSelectors = new Set(rawFindings
+    .filter((item) => item.rule === 'accessible-name' || item.rule === 'form-label')
+    .map((item) => item.selector)
+    .filter((selector): selector is string => Boolean(selector)))
+  const findings = rawFindings
+    .filter((item) => item.rule !== 'guide-action-name' || !item.selector || !unnamedSelectors.has(item.selector))
+    .map(serializedFinding)
 
   actions.forEach((item) => {
-    const text = [item.title, visibleText(item.element)].join(' ')
-    if (!item.element.matches('button, input[type="button"], input[type="submit"], [role="button"]') || !CONSEQUENCE_TEXT.test(text) || item.action === 'purchase' || item.action === 'delete') return
+    if (!item.element.matches('button, input[type="button"], input[type="submit"], [role="button"]') || !CONSEQUENCE_TEXT.test(item.title.trim()) || item.action === 'purchase' || item.action === 'delete') return
     findings.push({
       rule: 'inferred-consequence-guidance',
       impact: 'moderate',
@@ -167,7 +181,12 @@ export function evaluateAgentReadiness(options: AuditOptions = {}): AgentReadine
   })
 
   const dimensions = Object.values(DIMENSIONS).map((dimension) => {
-    const deduction = findings.filter((item) => item.dimension === dimension.id).reduce((total, item) => total + item.deduction, 0)
+    const patterns = new Map<string, number>()
+    findings.filter((item) => item.dimension === dimension.id).forEach((item) => {
+      const key = [item.rule, item.impact, item.recommendation].join('\u0000')
+      patterns.set(key, Math.max(patterns.get(key) ?? 0, item.deduction))
+    })
+    const deduction = [...patterns.values()].reduce((total, value) => total + value, 0)
     return { ...dimension, score: Math.max(0, 100 - deduction) }
   })
   const score = Math.round(dimensions.reduce((total, dimension) => total + dimension.score * dimension.weight, 0) / 100)
@@ -193,4 +212,64 @@ export function evaluateAgentReadiness(options: AuditOptions = {}): AgentReadine
     },
     manifest: buildGuideManifest(doc, items),
   }
+}
+
+/** Waits for a quiet rendered DOM before producing an agent-readiness evaluation. */
+export function evaluateAgentReadinessWhenStable(options: AgentReadinessStabilityOptions = {}): Promise<AgentReadinessEvaluation> {
+  const {
+    settleTimeMs = 100,
+    timeoutMs = 5000,
+    signal,
+    ...auditOptions
+  } = options
+  const root = auditOptions.root ?? document
+  const doc = ownerDocument(root)
+  const Observer = doc.defaultView?.MutationObserver
+
+  return new Promise((resolve, reject) => {
+    let settleTimer: ReturnType<typeof setTimeout> | undefined
+    let timeoutTimer: ReturnType<typeof setTimeout> | undefined
+    let observer: MutationObserver | undefined
+
+    const cleanup = (): void => {
+      clearTimeout(settleTimer)
+      clearTimeout(timeoutTimer)
+      observer?.disconnect()
+      signal?.removeEventListener('abort', abort)
+    }
+    const abort = (): void => {
+      cleanup()
+      const error = new Error('Agent-readiness evaluation was aborted.')
+      error.name = 'AbortError'
+      reject(error)
+    }
+    const evaluate = (): void => {
+      cleanup()
+      resolve(evaluateAgentReadiness(auditOptions))
+    }
+    const schedule = (): void => {
+      clearTimeout(settleTimer)
+      settleTimer = setTimeout(evaluate, Math.max(0, settleTimeMs))
+    }
+
+    if (signal?.aborted) {
+      abort()
+      return
+    }
+    signal?.addEventListener('abort', abort, { once: true })
+    if (Observer) {
+      observer = new Observer(schedule)
+      observer.observe(root.nodeType === 9 ? doc.documentElement : root, {
+        attributes: true,
+        characterData: true,
+        childList: true,
+        subtree: true,
+      })
+    }
+    timeoutTimer = setTimeout(() => {
+      cleanup()
+      reject(new Error(`The page did not settle within ${Math.max(0, timeoutMs)}ms.`))
+    }, Math.max(0, timeoutMs))
+    schedule()
+  })
 }

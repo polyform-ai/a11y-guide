@@ -131,4 +131,23 @@ describe('createGuide', () => {
     expect(controller.getItems().find((item) => item.id === 'auto-3')?.title).toBe('Add 2 to cart')
     controller.destroy()
   })
+
+  it('collapses dense guide groups without removing items from the controller', () => {
+    document.body.innerHTML = `
+      <main><h1>Tasks</h1>
+        <button>First task</button><button>Second task</button>
+        <button>Third task</button><button>Fourth task</button>
+      </main>
+    `
+    const controller = createGuide({ observe: false, maxVisibleItems: 2 })
+    const shadow = document.querySelector<HTMLElement>('[data-a11y-guide-ui]')?.shadowRoot
+
+    shadow?.querySelector<HTMLButtonElement>('.toggle')?.click()
+
+    const overflow = shadow?.querySelector<HTMLDetailsElement>('.overflow')
+    expect(overflow?.open).toBe(false)
+    expect(overflow?.querySelector('summary')?.textContent).toBe('Show 2 more actions')
+    expect(controller.getItems().filter((item) => item.kind === 'action')).toHaveLength(4)
+    controller.destroy()
+  })
 })
